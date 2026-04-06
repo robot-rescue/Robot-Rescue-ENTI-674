@@ -1,22 +1,25 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Robot Rescue API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: incidents
+    description: Robot incident operations
+  - name: analytics
+    description: Analytics operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +27,122 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /incidents:
+    get:
+      operationId: listIncidents
+      tags: [incidents]
+      summary: List all incidents
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, resolved, all]
+      responses:
+        "200":
+          description: List of incidents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Incident"
+
+    post:
+      operationId: createIncident
+      tags: [incidents]
+      summary: Create a new incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIncidentBody"
+      responses:
+        "201":
+          description: Created incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /incidents/{id}:
+    get:
+      operationId: getIncident
+      tags: [incidents]
+      summary: Get an incident by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Incident detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "404":
+          description: Not found
+
+    patch:
+      operationId: updateIncident
+      tags: [incidents]
+      summary: Update incident status or take action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIncidentBody"
+      responses:
+        "200":
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "404":
+          description: Not found
+
+  /incidents/log:
+    get:
+      operationId: getIncidentLog
+      tags: [incidents]
+      summary: Get resolved/logged incidents
+      responses:
+        "200":
+          description: Incident log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IncidentLogEntry"
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get analytics summary
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +153,176 @@ components:
       required:
         - status
 
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+        robotId:
+          type: string
+        location:
+          type: string
+        issueType:
+          type: string
+          enum: [obstacle_detected, system_error, path_blocked, sensor_failure, battery_critical, communication_lost]
+        severity:
+          type: string
+          enum: [low, medium, high]
+        status:
+          type: string
+          enum: [waiting, in_progress, resolved]
+        description:
+          type: string
+        timestamp:
+          type: string
+        resolvedAt:
+          type: string
+          nullable: true
+        actionTaken:
+          type: string
+          nullable: true
+        responseTimeSeconds:
+          type: number
+          nullable: true
+        sensorData:
+          $ref: "#/components/schemas/SensorData"
+      required:
+        - id
+        - robotId
+        - location
+        - issueType
+        - severity
+        - status
+        - description
+        - timestamp
+        - sensorData
+
+    SensorData:
+      type: object
+      properties:
+        battery:
+          type: number
+        speed:
+          type: number
+        temperature:
+          type: number
+        obstacleDistance:
+          type: number
+          nullable: true
+        signalStrength:
+          type: number
+      required:
+        - battery
+        - speed
+        - temperature
+        - signalStrength
+
+    CreateIncidentBody:
+      type: object
+      properties:
+        robotId:
+          type: string
+        location:
+          type: string
+        issueType:
+          type: string
+          enum: [obstacle_detected, system_error, path_blocked, sensor_failure, battery_critical, communication_lost]
+        severity:
+          type: string
+          enum: [low, medium, high]
+        description:
+          type: string
+      required:
+        - robotId
+        - location
+        - issueType
+        - severity
+        - description
+
+    UpdateIncidentBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [waiting, in_progress, resolved]
+        actionTaken:
+          type: string
+          enum: [reroute, pause, manual_override, escalate]
+      required: []
+
+    IncidentLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        robotId:
+          type: string
+        issueType:
+          type: string
+        actionTaken:
+          type: string
+          nullable: true
+        resolvedAt:
+          type: string
+          nullable: true
+        responseTimeSeconds:
+          type: number
+          nullable: true
+        severity:
+          type: string
+        location:
+          type: string
+      required:
+        - id
+        - robotId
+        - issueType
+        - severity
+        - location
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalIncidents:
+          type: number
+        activeIncidents:
+          type: number
+        resolvedIncidents:
+          type: number
+        avgResponseTimeSeconds:
+          type: number
+        issueBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              issueType:
+                type: string
+              count:
+                type: number
+            required:
+              - issueType
+              - count
+        severityBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              count:
+                type: number
+            required:
+              - severity
+              - count
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/Incident"
+      required:
+        - totalIncidents
+        - activeIncidents
+        - resolvedIncidents
+        - avgResponseTimeSeconds
+        - issueBreakdown
+        - severityBreakdown
+        - recentActivity
