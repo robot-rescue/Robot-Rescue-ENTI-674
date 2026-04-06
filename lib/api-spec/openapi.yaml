@@ -119,10 +119,10 @@ paths:
     get:
       operationId: getIncidentLog
       tags: [incidents]
-      summary: Get resolved/logged incidents
+      summary: Get resolved incident log
       responses:
         "200":
-          description: Incident log entries
+          description: List of resolved incidents
           content:
             application/json:
               schema:
@@ -150,8 +150,14 @@ components:
       properties:
         status:
           type: string
+        uptime:
+          type: number
+        timestamp:
+          type: string
       required:
         - status
+        - uptime
+        - timestamp
 
     Incident:
       type: object
@@ -181,8 +187,12 @@ components:
         actionTaken:
           type: string
           nullable: true
+          enum: [reroute, pause, manual_override, escalate]
         responseTimeSeconds:
           type: number
+          nullable: true
+        assignedTo:
+          type: string
           nullable: true
         sensorData:
           $ref: "#/components/schemas/SensorData"
@@ -248,6 +258,9 @@ components:
         actionTaken:
           type: string
           enum: [reroute, pause, manual_override, escalate]
+        assignedTo:
+          type: string
+          nullable: true
       required: []
 
     IncidentLogEntry:
@@ -290,6 +303,10 @@ components:
           type: number
         avgResponseTimeSeconds:
           type: number
+        highSeverityPct:
+          type: number
+        mostFrequentIssueType:
+          type: string
         issueBreakdown:
           type: array
           items:
@@ -314,6 +331,30 @@ components:
             required:
               - severity
               - count
+        locationBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              location:
+                type: string
+              count:
+                type: number
+            required:
+              - location
+              - count
+        incidentsPerDay:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+              count:
+                type: number
+            required:
+              - day
+              - count
         recentActivity:
           type: array
           items:
@@ -323,6 +364,10 @@ components:
         - activeIncidents
         - resolvedIncidents
         - avgResponseTimeSeconds
+        - highSeverityPct
+        - mostFrequentIssueType
         - issueBreakdown
         - severityBreakdown
+        - locationBreakdown
+        - incidentsPerDay
         - recentActivity

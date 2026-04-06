@@ -29,6 +29,7 @@ export interface Incident {
   resolvedAt: string | null;
   actionTaken: ActionTaken | null;
   responseTimeSeconds: number | null;
+  assignedTo: string | null;
   sensorData: SensorData;
 }
 
@@ -43,6 +44,10 @@ export const locations = [
   "Loading Dock 1", "Loading Dock 3",
   "Assembly Line C", "Assembly Line D",
   "Cold Storage Zone", "Shipping Area 2",
+];
+
+export const operators = [
+  "Chen, L.", "Rivera, M.", "Okafor, T.", "Singh, P.", "Walsh, K.",
 ];
 
 const issueDescriptions: Record<IssueType, string[]> = {
@@ -128,6 +133,7 @@ export function generateIncident(overrides: Partial<Incident> = {}): Incident {
     resolvedAt: null,
     actionTaken: null,
     responseTimeSeconds: null,
+    assignedTo: null,
     sensorData: makeSensorData(issueType),
     ...overrides,
   };
@@ -146,23 +152,25 @@ export const incidents: Incident[] = [
 
 export const resolvedIncidents: Incident[] = (() => {
   const resolved: Incident[] = [];
-  for (let i = 0; i < 15; i++) {
-    const issueType = randFrom<IssueType>([
-      "obstacle_detected", "system_error", "path_blocked",
-      "sensor_failure", "battery_critical", "communication_lost",
-    ]);
+  const issueTypes: IssueType[] = [
+    "obstacle_detected", "system_error", "path_blocked",
+    "sensor_failure", "battery_critical", "communication_lost",
+  ];
+  for (let i = 0; i < 21; i++) {
+    const issueType = randFrom<IssueType>(issueTypes);
     const severity = randFrom<Severity>(["low", "medium", "high"]);
     const robotId = randFrom(robotIds);
     const location = randFrom(locations);
     const descriptions = issueDescriptions[issueType];
     const description = randFrom(descriptions);
     const now = new Date();
-    const hoursAgo = Math.floor(Math.random() * 48);
+    const daysAgo = Math.floor(Math.random() * 7);
+    const hoursAgo = Math.floor(Math.random() * 24);
     const minsAgo2 = Math.floor(Math.random() * 60);
     const timestamp = new Date(
-      now.getTime() - hoursAgo * 3600000 - minsAgo2 * 60000
+      now.getTime() - daysAgo * 86400000 - hoursAgo * 3600000 - minsAgo2 * 60000
     ).toISOString();
-    const responseTime = randBetween(30, 600);
+    const responseTime = randBetween(30, 900);
     const resolvedAt = new Date(
       new Date(timestamp).getTime() + responseTime * 1000
     ).toISOString();
@@ -179,11 +187,11 @@ export const resolvedIncidents: Incident[] = (() => {
       resolvedAt,
       actionTaken: randFrom(actions),
       responseTimeSeconds: responseTime,
+      assignedTo: Math.random() > 0.4 ? randFrom(operators) : null,
       sensorData: makeSensorData(issueType),
     });
   }
   return resolved.sort(
-    (a, b) =>
-      new Date(b.resolvedAt!).getTime() - new Date(a.resolvedAt!).getTime()
+    (a, b) => new Date(b.resolvedAt!).getTime() - new Date(a.resolvedAt!).getTime()
   );
 })();

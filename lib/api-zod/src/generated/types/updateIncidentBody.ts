@@ -11,4 +11,5 @@ import type { UpdateIncidentBodyStatus } from "./updateIncidentBodyStatus";
 export interface UpdateIncidentBody {
   status?: UpdateIncidentBodyStatus;
   actionTaken?: UpdateIncidentBodyActionTaken;
+  assignedTo?: string | null;
 }

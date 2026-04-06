@@ -465,7 +465,7 @@ export const useUpdateIncident = <
 };
 
 /**
- * @summary Get resolved/logged incidents
+ * @summary Get resolved incident log
  */
 export const getGetIncidentLogUrl = () => {
   return `/api/incidents/log`;
@@ -516,7 +516,7 @@ export type GetIncidentLogQueryResult = NonNullable<
 export type GetIncidentLogQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get resolved/logged incidents
+ * @summary Get resolved incident log
  */
 
 export function useGetIncidentLog<

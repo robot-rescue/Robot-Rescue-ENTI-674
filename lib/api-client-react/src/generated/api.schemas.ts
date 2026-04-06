@@ -7,6 +7,8 @@
  */
 export interface HealthStatus {
   status: string;
+  uptime: number;
+  timestamp: string;
 }
 
 export type IncidentIssueType =
@@ -39,6 +41,17 @@ export const IncidentStatus = {
   resolved: "resolved",
 } as const;
 
+export type IncidentActionTaken =
+  | (typeof IncidentActionTaken)[keyof typeof IncidentActionTaken]
+  | null;
+
+export const IncidentActionTaken = {
+  reroute: "reroute",
+  pause: "pause",
+  manual_override: "manual_override",
+  escalate: "escalate",
+} as const;
+
 export interface SensorData {
   battery: number;
   speed: number;
@@ -57,8 +70,9 @@ export interface Incident {
   description: string;
   timestamp: string;
   resolvedAt?: string | null;
-  actionTaken?: string | null;
+  actionTaken?: IncidentActionTaken;
   responseTimeSeconds?: number | null;
+  assignedTo?: string | null;
   sensorData: SensorData;
 }
 
@@ -113,6 +127,7 @@ export const UpdateIncidentBodyActionTaken = {
 export interface UpdateIncidentBody {
   status?: UpdateIncidentBodyStatus;
   actionTaken?: UpdateIncidentBodyActionTaken;
+  assignedTo?: string | null;
 }
 
 export interface IncidentLogEntry {
@@ -136,13 +151,27 @@ export type AnalyticsSummarySeverityBreakdownItem = {
   count: number;
 };
 
+export type AnalyticsSummaryLocationBreakdownItem = {
+  location: string;
+  count: number;
+};
+
+export type AnalyticsSummaryIncidentsPerDayItem = {
+  day: string;
+  count: number;
+};
+
 export interface AnalyticsSummary {
   totalIncidents: number;
   activeIncidents: number;
   resolvedIncidents: number;
   avgResponseTimeSeconds: number;
+  highSeverityPct: number;
+  mostFrequentIssueType: string;
   issueBreakdown: AnalyticsSummaryIssueBreakdownItem[];
   severityBreakdown: AnalyticsSummarySeverityBreakdownItem[];
+  locationBreakdown: AnalyticsSummaryLocationBreakdownItem[];
+  incidentsPerDay: AnalyticsSummaryIncidentsPerDayItem[];
   recentActivity: Incident[];
 }
 
