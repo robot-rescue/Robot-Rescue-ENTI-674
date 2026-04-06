@@ -5,6 +5,7 @@
  * Robot Rescue API
  * OpenAPI spec version: 0.1.0
  */
+import type { IncidentActionTaken } from "./incidentActionTaken";
 import type { IncidentIssueType } from "./incidentIssueType";
 import type { IncidentSeverity } from "./incidentSeverity";
 import type { IncidentStatus } from "./incidentStatus";
@@ -20,7 +21,8 @@ export interface Incident {
   description: string;
   timestamp: string;
   resolvedAt?: string | null;
-  actionTaken?: string | null;
+  actionTaken?: IncidentActionTaken;
   responseTimeSeconds?: number | null;
+  assignedTo?: string | null;
   sensorData: SensorData;
 }

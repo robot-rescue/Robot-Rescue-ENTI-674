@@ -7,13 +7,16 @@
  */
 
 export * from "./analyticsSummary";
+export * from "./analyticsSummaryIncidentsPerDayItem";
 export * from "./analyticsSummaryIssueBreakdownItem";
+export * from "./analyticsSummaryLocationBreakdownItem";
 export * from "./analyticsSummarySeverityBreakdownItem";
 export * from "./createIncidentBody";
 export * from "./createIncidentBodyIssueType";
 export * from "./createIncidentBodySeverity";
 export * from "./healthStatus";
 export * from "./incident";
+export * from "./incidentActionTaken";
 export * from "./incidentIssueType";
 export * from "./incidentLogEntry";
 export * from "./incidentSeverity";

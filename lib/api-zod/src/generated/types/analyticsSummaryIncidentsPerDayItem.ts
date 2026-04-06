@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  uptime: number;
-  timestamp: string;
-}
+export type AnalyticsSummaryIncidentsPerDayItem = {
+  day: string;
+  count: number;
+};

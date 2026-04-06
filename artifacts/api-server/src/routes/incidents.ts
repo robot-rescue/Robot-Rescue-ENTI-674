@@ -78,13 +78,16 @@ router.patch("/incidents/:id", (req, res) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(resolvedIncidents[ridx]);
+    const resolved = resolvedIncidents[ridx];
+    if (body.data.assignedTo !== undefined) resolved.assignedTo = body.data.assignedTo;
+    res.json(resolved);
     return;
   }
 
   const incident = incidents[idx];
-  const { status, actionTaken } = body.data;
+  const { status, actionTaken, assignedTo } = body.data;
 
+  if (assignedTo !== undefined) incident.assignedTo = assignedTo;
   if (status) incident.status = status;
   if (actionTaken) incident.actionTaken = actionTaken;
 

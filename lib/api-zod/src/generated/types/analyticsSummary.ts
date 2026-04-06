@@ -5,7 +5,9 @@
  * Robot Rescue API
  * OpenAPI spec version: 0.1.0
  */
+import type { AnalyticsSummaryIncidentsPerDayItem } from "./analyticsSummaryIncidentsPerDayItem";
 import type { AnalyticsSummaryIssueBreakdownItem } from "./analyticsSummaryIssueBreakdownItem";
+import type { AnalyticsSummaryLocationBreakdownItem } from "./analyticsSummaryLocationBreakdownItem";
 import type { AnalyticsSummarySeverityBreakdownItem } from "./analyticsSummarySeverityBreakdownItem";
 import type { Incident } from "./incident";
 
@@ -14,7 +16,11 @@ export interface AnalyticsSummary {
   activeIncidents: number;
   resolvedIncidents: number;
   avgResponseTimeSeconds: number;
+  highSeverityPct: number;
+  mostFrequentIssueType: string;
   issueBreakdown: AnalyticsSummaryIssueBreakdownItem[];
   severityBreakdown: AnalyticsSummarySeverityBreakdownItem[];
+  locationBreakdown: AnalyticsSummaryLocationBreakdownItem[];
+  incidentsPerDay: AnalyticsSummaryIncidentsPerDayItem[];
   recentActivity: Incident[];
 }

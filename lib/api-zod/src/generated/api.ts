@@ -12,6 +12,8 @@ import * as zod from "zod";
  */
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
+  uptime: zod.number(),
+  timestamp: zod.string(),
 });
 
 /**
@@ -38,8 +40,11 @@ export const ListIncidentsResponseItem = zod.object({
   description: zod.string(),
   timestamp: zod.string(),
   resolvedAt: zod.string().nullish(),
-  actionTaken: zod.string().nullish(),
+  actionTaken: zod
+    .enum(["reroute", "pause", "manual_override", "escalate"])
+    .nullish(),
   responseTimeSeconds: zod.number().nullish(),
+  assignedTo: zod.string().nullish(),
   sensorData: zod.object({
     battery: zod.number(),
     speed: zod.number(),
@@ -92,8 +97,11 @@ export const GetIncidentResponse = zod.object({
   description: zod.string(),
   timestamp: zod.string(),
   resolvedAt: zod.string().nullish(),
-  actionTaken: zod.string().nullish(),
+  actionTaken: zod
+    .enum(["reroute", "pause", "manual_override", "escalate"])
+    .nullish(),
   responseTimeSeconds: zod.number().nullish(),
+  assignedTo: zod.string().nullish(),
   sensorData: zod.object({
     battery: zod.number(),
     speed: zod.number(),
@@ -115,6 +123,7 @@ export const UpdateIncidentBody = zod.object({
   actionTaken: zod
     .enum(["reroute", "pause", "manual_override", "escalate"])
     .optional(),
+  assignedTo: zod.string().nullish(),
 });
 
 export const UpdateIncidentResponse = zod.object({
@@ -134,8 +143,11 @@ export const UpdateIncidentResponse = zod.object({
   description: zod.string(),
   timestamp: zod.string(),
   resolvedAt: zod.string().nullish(),
-  actionTaken: zod.string().nullish(),
+  actionTaken: zod
+    .enum(["reroute", "pause", "manual_override", "escalate"])
+    .nullish(),
   responseTimeSeconds: zod.number().nullish(),
+  assignedTo: zod.string().nullish(),
   sensorData: zod.object({
     battery: zod.number(),
     speed: zod.number(),
@@ -146,7 +158,7 @@ export const UpdateIncidentResponse = zod.object({
 });
 
 /**
- * @summary Get resolved/logged incidents
+ * @summary Get resolved incident log
  */
 export const GetIncidentLogResponseItem = zod.object({
   id: zod.string(),
@@ -168,6 +180,8 @@ export const GetAnalyticsSummaryResponse = zod.object({
   activeIncidents: zod.number(),
   resolvedIncidents: zod.number(),
   avgResponseTimeSeconds: zod.number(),
+  highSeverityPct: zod.number(),
+  mostFrequentIssueType: zod.string(),
   issueBreakdown: zod.array(
     zod.object({
       issueType: zod.string(),
@@ -177,6 +191,18 @@ export const GetAnalyticsSummaryResponse = zod.object({
   severityBreakdown: zod.array(
     zod.object({
       severity: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  locationBreakdown: zod.array(
+    zod.object({
+      location: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  incidentsPerDay: zod.array(
+    zod.object({
+      day: zod.string(),
       count: zod.number(),
     }),
   ),
@@ -198,8 +224,11 @@ export const GetAnalyticsSummaryResponse = zod.object({
       description: zod.string(),
       timestamp: zod.string(),
       resolvedAt: zod.string().nullish(),
-      actionTaken: zod.string().nullish(),
+      actionTaken: zod
+        .enum(["reroute", "pause", "manual_override", "escalate"])
+        .nullish(),
       responseTimeSeconds: zod.number().nullish(),
+      assignedTo: zod.string().nullish(),
       sensorData: zod.object({
         battery: zod.number(),
         speed: zod.number(),
