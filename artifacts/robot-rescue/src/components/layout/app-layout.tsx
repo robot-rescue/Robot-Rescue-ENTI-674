@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Sidebar } from "./sidebar";
-import { Bell, CheckCheck, ChevronRight } from "lucide-react";
+import { Bell, CheckCheck, ChevronRight, Bot, AlertTriangle, Activity } from "lucide-react";
 import { useSimulatedAlerts } from "../simulated-alerts-provider";
+import { useListIncidents } from "@workspace/api-client-react";
 import { SeverityBadge } from "../ui-helpers";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,7 +12,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
-  const { notifications, unreadCount, markAllRead, markOneRead } = useSimulatedAlerts();
+  const { notifications, unreadCount, markAllRead, markOneRead, simulatedIncidents } = useSimulatedAlerts();
+  const { data: apiIncidents = [] } = useListIncidents({ status: "active" });
+
+  const totalActive = apiIncidents.length + simulatedIncidents.length;
+  const criticalCount = [...apiIncidents, ...simulatedIncidents].filter(i => i.severity === 'high').length;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -37,10 +42,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
         <header className="h-14 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between px-6 z-20">
           <div className="font-sans font-bold tracking-wider text-sm">ROBOT RESCUE</div>
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <span className="text-emerald-500 tracking-widest">LIVE SYSTEM ONLINE</span>
+
+          <div className="flex items-center gap-5">
+            {/* System status pills */}
+            <div className="hidden sm:flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <Bot className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-muted-foreground">ONLINE</span>
+                <span className="text-emerald-500 font-bold">{Math.max(0, 10 - totalActive)}</span>
+              </div>
+              <div className="w-px h-3.5 bg-border" />
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <Activity className="w-3.5 h-3.5 text-primary" />
+                <span className="text-muted-foreground">ACTIVE</span>
+                <span className="text-primary font-bold">{totalActive}</span>
+              </div>
+              <div className="w-px h-3.5 bg-border" />
+              <div className="flex items-center gap-1.5 text-xs font-mono">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                <span className="text-muted-foreground">CRITICAL</span>
+                <span className={`font-bold ${criticalCount > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>{criticalCount}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <span className="text-emerald-500 tracking-widest hidden md:inline">LIVE SYSTEM ONLINE</span>
+            </div>
           </div>
+
           <div className="flex items-center gap-4">
             <div ref={bellRef} className="relative">
               <button
@@ -66,7 +96,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-lg shadow-2xl z-50 overflow-hidden"
                   >
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
-                      <div className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">Alerts</div>
+                      <div className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
+                        Alerts
+                        {unreadCount > 0 && (
+                          <span className="ml-2 text-primary">({unreadCount} new)</span>
+                        )}
+                      </div>
                       {notifications.some(n => !n.read) && (
                         <button
                           onClick={markAllRead}

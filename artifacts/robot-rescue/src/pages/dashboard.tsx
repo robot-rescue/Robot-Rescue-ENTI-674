@@ -207,10 +207,6 @@ export default function Dashboard() {
             <AnimatePresence>
               {filtered.map((incident) => {
                 const severityClass = incident.severity === 'high' ? 'incident-card-high' : incident.severity === 'medium' ? 'incident-card-medium' : 'incident-card-low';
-                const elapsedMs = new Date().getTime() - new Date(incident.timestamp).getTime();
-                const elapsedMins = elapsedMs / 60000;
-                const progressPct = Math.min(100, Math.max(0, (elapsedMins / 60) * 100));
-                const progressColor = progressPct > 80 ? 'bg-red-500' : progressPct > 40 ? 'bg-amber-500' : 'bg-blue-500';
                 return (
                   <motion.div
                     key={incident.id}
@@ -220,8 +216,8 @@ export default function Dashboard() {
                     transition={{ duration: 0.2 }}
                   >
                     <Link href={`/incidents/${incident.id}`}>
-                      <div className={`group block bg-card/80 backdrop-blur rounded-lg border border-border overflow-hidden hover:border-primary/50 cursor-pointer shadow-sm hover:shadow-primary/10 relative transition-all duration-200 hover:scale-[1.02] ${severityClass}`}>
-                        <div className="p-4 border-b border-border/50 flex justify-between items-start">
+                      <div className={`group block bg-card/80 backdrop-blur rounded-lg border border-border cursor-pointer transition-all duration-250 hover:scale-[1.015] ${severityClass}`}>
+                        <div className="p-4 border-b border-border/40 flex justify-between items-start">
                           <div className="flex items-center gap-2">
                             <AlertOctagon className={`w-5 h-5 ${incident.severity === 'high' ? 'text-red-500 animate-pulse' : incident.severity === 'medium' ? 'text-amber-500' : 'text-blue-400'}`} />
                             <span className="font-mono font-bold text-lg text-foreground">{incident.robotId}</span>
@@ -230,20 +226,17 @@ export default function Dashboard() {
                         </div>
                         <div className="p-4 space-y-4">
                           <div>
-                            <div className="text-sm font-medium mb-1 truncate text-foreground">
+                            <div className="text-sm font-semibold mb-1 truncate text-foreground">
                               {incident.issueType.replace(/_/g, ' ').toUpperCase()}
                             </div>
                             <div className="flex items-center text-xs text-muted-foreground font-mono">
-                              <MapPin className="w-3 h-3 mr-1" />{incident.location}
+                              <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />{incident.location}
                             </div>
                           </div>
-                          <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center justify-between">
                             <StatusBadge status={incident.status} />
                             <IncidentTimer timestamp={incident.timestamp} />
                           </div>
-                        </div>
-                        <div className="h-1 w-full bg-secondary absolute bottom-0 left-0">
-                          <div className={`h-full ${progressColor} transition-all duration-1000`} style={{ width: `${progressPct}%` }} />
                         </div>
                       </div>
                     </Link>
