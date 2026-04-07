@@ -3,31 +3,22 @@ import { Link } from "wouter";
 import { useListIncidents, useUpdateIncident, getListIncidentsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSimulatedAlerts } from "../components/simulated-alerts-provider";
-import { SeverityBadge, StatusBadge } from "../components/ui-helpers";
+import { SeverityBadge, StatusBadge, OperatorChip } from "../components/ui-helpers";
 import { SearchFilterBar, SeverityFilter, SortKey } from "../components/search-filter-bar";
 import { Users, ChevronDown, MapPin, CheckCircle2, UserMinus, ExternalLink, Shuffle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const OPERATORS = [
-  { id: "unassigned", name: "Unassigned", initials: "--", color: "bg-zinc-600" },
-  { id: "alex-chen", name: "Alex Chen", initials: "AC", color: "bg-cyan-600" },
-  { id: "sarah-kim", name: "Sarah Kim", initials: "SK", color: "bg-violet-600" },
-  { id: "jordan-patel", name: "Jordan Patel", initials: "JP", color: "bg-amber-600" },
-  { id: "darren-watkins", name: "Darren Watkins Jr.", initials: "DW", color: "bg-emerald-600" },
+  { id: "unassigned",      name: "Unassigned",         initials: "--", color: "bg-zinc-600" },
+  { id: "alex-chen",       name: "Alex Chen",           initials: "AC", color: "bg-cyan-600" },
+  { id: "sarah-kim",       name: "Sarah Kim",           initials: "SK", color: "bg-violet-600" },
+  { id: "jordan-patel",    name: "Jordan Patel",        initials: "JP", color: "bg-amber-600" },
+  { id: "darren-watkins",  name: "Darren Watkins Jr.",  initials: "DW", color: "bg-emerald-600" },
 ];
 
 const ACTIVE_OPS = OPERATORS.slice(1);
-
-function OperatorAvatar({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
-  const op = OPERATORS.find(o => o.name === name) || OPERATORS[0];
-  const sz = size === "sm" ? "w-7 h-7 text-[10px]" : "w-9 h-9 text-xs";
-  return (
-    <div className={`${sz} rounded-full ${op.color} flex items-center justify-center font-mono font-bold text-white flex-shrink-0`} title={op.name}>
-      {op.initials}
-    </div>
-  );
-}
+const SEV_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 function AssignmentDropdown({
   currentAssignee,
@@ -57,32 +48,28 @@ function AssignmentDropdown({
         }`}
       >
         {currentAssignee ? (
-          <OperatorAvatar name={currentAssignee} />
+          <OperatorChip name={currentAssignee} size="sm" />
         ) : (
-          <UserMinus className="w-4 h-4" />
+          <>
+            <UserMinus className="w-4 h-4" />
+            <span className="hidden sm:inline text-muted-foreground">{displayName}</span>
+          </>
         )}
-        <span className="hidden sm:inline truncate max-w-24">{displayName}</span>
         <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 w-56 bg-card border border-border rounded-lg shadow-2xl z-50 overflow-hidden py-1">
+          <div className="absolute right-0 top-full mt-1 w-60 bg-card border border-border rounded-lg shadow-2xl z-50 overflow-hidden py-1">
             {OPERATORS.map(op => {
               const load = op.id !== "unassigned" ? (workloads[op.name] ?? 0) : null;
+              const isCurrent = (currentAssignee || null) === (op.id === "unassigned" ? null : op.name);
               return (
                 <button
                   key={op.id}
-                  onClick={() => {
-                    onAssign(op.id === "unassigned" ? null : op.name);
-                    setOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-secondary/70 transition-colors text-sm ${
-                    (currentAssignee || null) === (op.id === "unassigned" ? null : op.name)
-                      ? "text-primary bg-primary/5"
-                      : "text-foreground"
-                  }`}
+                  onClick={() => { onAssign(op.id === "unassigned" ? null : op.name); setOpen(false); }}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-secondary/70 transition-colors text-sm ${isCurrent ? "text-primary bg-primary/5" : "text-foreground"}`}
                 >
                   <div className={`w-7 h-7 rounded-full ${op.color} flex items-center justify-center font-mono font-bold text-[10px] text-white flex-shrink-0`}>
                     {op.initials}
@@ -94,12 +81,10 @@ function AssignmentDropdown({
                       load >= 3 ? 'text-red-400 border-red-500/30 bg-red-500/10' :
                       'text-amber-400 border-amber-500/30 bg-amber-500/10'
                     }`}>
-                      {load} active
+                      {load}
                     </span>
                   )}
-                  {(currentAssignee || null) === (op.id === "unassigned" ? null : op.name) && (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  )}
+                  {isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
                 </button>
               );
             })}
@@ -110,11 +95,9 @@ function AssignmentDropdown({
   );
 }
 
-const SEV_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
-
 export default function Assignments() {
   const { data: apiIncidents = [], isLoading } = useListIncidents({ status: "active" });
-  const { simulatedIncidents } = useSimulatedAlerts();
+  const { simulatedIncidents, manualAssign, forceAutoAssign } = useSimulatedAlerts();
   const updateIncident = useUpdateIncident();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -130,7 +113,7 @@ export default function Assignments() {
     const wl: Record<string, number> = {};
     for (const op of ACTIVE_OPS) wl[op.name] = 0;
     for (const inc of allActive) {
-      if (inc.assignedTo) wl[inc.assignedTo] = (wl[inc.assignedTo] ?? 0) + 1;
+      if (inc.assignedTo && wl[inc.assignedTo] !== undefined) wl[inc.assignedTo]++;
     }
     return wl;
   }, [allActive]);
@@ -141,13 +124,14 @@ export default function Assignments() {
     if (q) list = list.filter(i =>
       i.robotId.toLowerCase().includes(q) ||
       i.issueType.replace(/_/g, ' ').toLowerCase().includes(q) ||
-      i.location.toLowerCase().includes(q)
+      i.location.toLowerCase().includes(q) ||
+      (i.assignedTo || '').toLowerCase().includes(q)
     );
     if (severityFilter !== "all") list = list.filter(i => i.severity === severityFilter);
     if (assigneeFilter === "unassigned") list = list.filter(i => !i.assignedTo);
     else if (assigneeFilter !== "all") list = list.filter(i => i.assignedTo === assigneeFilter);
     list = [...list].sort((a, b) => {
-      if (sortKey === "severity") return SEV_ORDER[a.severity] - SEV_ORDER[b.severity];
+      if (sortKey === "severity") return (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3);
       if (sortKey === "oldest") return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
     });
@@ -159,12 +143,24 @@ export default function Assignments() {
 
   const handleAssign = (incidentId: string, robotId: string, isSimulated: boolean, operator: string | null) => {
     if (isSimulated) {
-      toast({ title: operator ? `Assigned to ${operator}` : "Assignment cleared", description: `Simulated incident for ${robotId} updated.` });
+      manualAssign(incidentId, operator);
+      toast({
+        title: operator ? `Assigned to ${operator}` : "Assignment cleared",
+        description: `Simulated incident for ${robotId} updated.`,
+      });
       return;
     }
     updateIncident.mutate(
       { id: incidentId, data: { assignedTo: operator } },
-      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListIncidentsQueryKey() }); toast({ title: operator ? `Assigned to ${operator}` : "Assignment cleared", description: `${robotId} incident updated.` }); } }
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListIncidentsQueryKey() });
+          toast({
+            title: operator ? `Assigned to ${operator}` : "Assignment cleared",
+            description: `${robotId} incident updated.`,
+          });
+        },
+      }
     );
   };
 
@@ -174,36 +170,28 @@ export default function Assignments() {
       toast({ title: "All incidents assigned", description: "No unassigned incidents to distribute." });
       return;
     }
-
-    const current = { ...workloads };
-    let assignCount = 0;
-
-    for (const incident of unassigned) {
-      const leastBusy = ACTIVE_OPS.reduce((a, b) => (current[a.name] ?? 0) <= (current[b.name] ?? 0) ? a : b);
-      const isSimulated = incident.id.startsWith("SIM-");
-      handleAssign(incident.id, incident.robotId, isSimulated, leastBusy.name);
-      current[leastBusy.name] = (current[leastBusy.name] ?? 0) + 1;
-      assignCount++;
+    // Assign API incidents manually
+    for (const inc of unassigned.filter(i => !i.id.startsWith("SIM-"))) {
+      const leastBusy = ACTIVE_OPS.reduce((a, b) =>
+        (workloads[a.name] ?? 0) <= (workloads[b.name] ?? 0) ? a : b
+      );
+      handleAssign(inc.id, inc.robotId, false, leastBusy.name);
     }
-
+    // Simulated incidents use the context's forceAutoAssign
+    forceAutoAssign();
     toast({
-      title: `Auto-assigned ${assignCount} incident${assignCount > 1 ? "s" : ""}`,
+      title: `Auto-assigned ${unassigned.length} incident${unassigned.length > 1 ? "s" : ""}`,
       description: "Distributed to least-loaded operators.",
     });
   };
-
-  const assigneeFilterOptions = [
-    { label: "All Operators", value: "all" },
-    { label: "Unassigned", value: "unassigned" },
-    ...ACTIVE_OPS.map(op => ({ label: op.name, value: op.name })),
-  ];
 
   return (
     <div className="flex flex-col h-full">
       <header className="h-16 px-6 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-sm">
         <div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" /> Assignments
+            <Users className="w-5 h-5 text-primary" />
+            Assignments
           </h1>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">OPERATOR TASK MANAGEMENT</p>
         </div>
@@ -236,16 +224,17 @@ export default function Assignments() {
         </div>
       </header>
 
-      {/* Operator workload bar */}
+      {/* Operator workload pills — clickable to filter */}
       <div className="px-6 py-3 border-b border-border/50 bg-secondary/10 flex items-center gap-3 flex-wrap">
         {ACTIVE_OPS.map(op => {
           const count = workloads[op.name] ?? 0;
+          const isSelected = assigneeFilter === op.name;
           return (
             <button
               key={op.id}
-              onClick={() => setAssigneeFilter(assigneeFilter === op.name ? "all" : op.name)}
+              onClick={() => setAssigneeFilter(isSelected ? "all" : op.name)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono transition-all border ${
-                assigneeFilter === op.name
+                isSelected
                   ? 'border-primary/50 bg-primary/10 text-primary'
                   : 'bg-card border-border hover:border-primary/30'
               }`}
@@ -263,8 +252,8 @@ export default function Assignments() {
           );
         })}
         {assigneeFilter !== "all" && (
-          <button onClick={() => setAssigneeFilter("all")} className="text-xs text-primary hover:text-primary/80 font-mono ml-1">
-            Clear filter
+          <button onClick={() => setAssigneeFilter("all")} className="text-xs text-primary hover:text-primary/80 font-mono ml-1 transition-colors">
+            Clear
           </button>
         )}
       </div>
@@ -280,7 +269,7 @@ export default function Assignments() {
           onSortChange={setSortKey}
           resultCount={filtered.length}
           totalCount={allActive.length}
-          placeholder="Search by robot ID, issue, or location..."
+          placeholder="Search by robot ID, issue, or operator..."
         />
       </div>
 
@@ -300,7 +289,7 @@ export default function Assignments() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-28">Robot</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-24">Robot</th>
                   <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Issue</th>
                   <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Location</th>
                   <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Severity</th>
@@ -309,54 +298,57 @@ export default function Assignments() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((incident, idx) => {
-                  const isSimulated = incident.id.startsWith("SIM-");
-                  const rowClass = incident.severity === 'high' ? 'list-row-high' : incident.severity === 'medium' ? 'list-row-medium' : 'list-row-low';
-                  return (
-                    <motion.tr
-                      key={incident.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.02 }}
-                      className={`border-b border-border/30 alt-row transition-colors ${rowClass}`}
-                    >
-                      <td className="px-4 py-3">
-                        <Link href={`/incidents/${incident.id}`} className="flex items-center gap-1.5 group">
-                          <span className="font-mono font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                            {incident.robotId}
-                          </span>
-                          <ExternalLink className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </Link>
-                        {isSimulated && <span className="text-[9px] font-mono text-primary/60">SIM</span>}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
-                        {incident.issueType.replace(/_/g, ' ')}
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate max-w-32">{incident.location}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <SeverityBadge severity={incident.severity} />
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <StatusBadge status={incident.status} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end">
-                          <AssignmentDropdown
-                            currentAssignee={incident.assignedTo ?? null}
-                            workloads={workloads}
-                            onAssign={(op) => handleAssign(incident.id, incident.robotId, isSimulated, op)}
-                            disabled={incident.status === "resolved"}
-                          />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
+                <AnimatePresence initial={false}>
+                  {filtered.map((incident, idx) => {
+                    const isSimulated = incident.id.startsWith("SIM-");
+                    const rowClass = incident.severity === 'high' ? 'list-row-high' : incident.severity === 'medium' ? 'list-row-medium' : 'list-row-low';
+                    return (
+                      <motion.tr
+                        key={incident.id}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: 20, scale: 0.98 }}
+                        transition={{ duration: 0.25, delay: idx < 6 ? idx * 0.03 : 0 }}
+                        className={`border-b border-border/30 alt-row transition-colors ${rowClass}`}
+                      >
+                        <td className="px-4 py-3">
+                          <Link href={`/incidents/${incident.id}`} className="flex items-center gap-1.5 group">
+                            <span className="font-mono font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                              {incident.robotId}
+                            </span>
+                            <ExternalLink className="w-3 h-3 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                          </Link>
+                          {isSimulated && <span className="text-[9px] font-mono text-primary/50">SIM</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
+                          {incident.issueType.replace(/_/g, ' ')}
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate max-w-32">{incident.location}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <SeverityBadge severity={incident.severity} />
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          <StatusBadge status={incident.status} assignedTo={incident.assignedTo} />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end">
+                            <AssignmentDropdown
+                              currentAssignee={incident.assignedTo ?? null}
+                              workloads={workloads}
+                              onAssign={op => handleAssign(incident.id, incident.robotId, isSimulated, op)}
+                              disabled={incident.status === "resolved"}
+                            />
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>

@@ -5,19 +5,37 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 
 import { AppLayout } from "@/components/layout/app-layout";
-import { SimulatedAlertsProvider } from "@/components/simulated-alerts-provider";
+import { SimulatedAlertsProvider, useSimulatedAlerts } from "@/components/simulated-alerts-provider";
 import Dashboard from "@/pages/dashboard";
 import IncidentDetail from "@/pages/incident-detail";
 import IncidentLog from "@/pages/incident-log";
 import Analytics from "@/pages/analytics";
 import Assignments from "@/pages/assignments";
 import NotFound from "@/pages/not-found";
+import { useToast } from "@/hooks/use-toast";
 
 const queryClient = new QueryClient();
+
+// Drains the toast queue and fires toasts via the shadcn useToast hook
+function ToastBridge() {
+  const { toastQueue, consumeToasts } = useSimulatedAlerts();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (toastQueue.length === 0) return;
+    const items = consumeToasts();
+    items.forEach(item => {
+      toast({ title: item.title, description: item.description, variant: item.variant });
+    });
+  }, [toastQueue, consumeToasts, toast]);
+
+  return null;
+}
 
 function Router() {
   return (
     <AppLayout>
+      <ToastBridge />
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/incidents/:id" component={IncidentDetail} />
