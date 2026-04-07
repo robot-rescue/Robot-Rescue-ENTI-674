@@ -178,11 +178,9 @@ export default function IncidentLog() {
                 <AnimatePresence initial={false}>
                   {filtered.map((log, idx) => {
                     const isSim = log.id.startsWith('SIM-');
-                    const borderLeft = log.severity === 'high'
-                      ? "border-l-2 border-l-red-500/50"
-                      : log.severity === 'medium'
-                      ? "border-l-2 border-l-amber-500/40"
-                      : "border-l-2 border-l-transparent";
+                    const rowClass = log.severity === 'high' ? 'list-row-high'
+                      : log.severity === 'medium' ? 'list-row-medium'
+                      : 'list-row-low';
                     return (
                       <motion.tr
                         key={log.id}
@@ -190,7 +188,7 @@ export default function IncidentLog() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2, delay: idx < 5 ? idx * 0.03 : 0 }}
-                        className={`border-b border-border/30 hover:bg-secondary/30 transition-colors ${borderLeft}`}
+                        className={`border-b border-border/30 alt-row cursor-default ${rowClass}`}
                       >
                         {/* Robot ID — always one line */}
                         <td className="px-4 py-3 whitespace-nowrap">
