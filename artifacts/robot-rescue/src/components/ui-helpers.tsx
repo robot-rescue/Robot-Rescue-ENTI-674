@@ -44,17 +44,21 @@ export function SeverityBadge({ severity }: { severity: string }) {
     }
   };
 
-  const isHigh = severity.toLowerCase() === 'high';
-
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border ${getSeverityStyle(severity)}`}>
-      {isHigh && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border whitespace-nowrap ${getSeverityStyle(severity)}`}>
+      {severity.toLowerCase() === "high" && (
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+      )}
       {severity}
     </span>
   );
 }
 
-// Extended StatusBadge — shows 4 lifecycle states based on status + assignedTo
+// 4-state lifecycle badge:
+//   UNASSIGNED  → gray   (status=waiting, no assignedTo)
+//   ASSIGNED    → blue   (status=waiting, assignedTo is set)
+//   IN PROGRESS → orange (status=in_progress)
+//   RESOLVED    → green  (status=resolved)
 export function StatusBadge({
   status,
   assignedTo,
@@ -62,26 +66,25 @@ export function StatusBadge({
   status: string;
   assignedTo?: string | null;
 }) {
-  // Derive display state
   const rawStatus = status.toLowerCase();
   const isAssigned = rawStatus === 'waiting' && !!assignedTo;
   const displayState = isAssigned ? 'assigned' : rawStatus;
 
   const config: Record<string, { dot: string; label: string; text: string }> = {
     waiting: {
-      dot: 'bg-primary animate-pulse',
-      label: 'WAITING',
-      text: 'text-primary',
+      dot: 'bg-zinc-500',
+      label: 'UNASSIGNED',
+      text: 'text-zinc-400',
     },
     assigned: {
-      dot: 'bg-violet-400 animate-pulse',
+      dot: 'bg-blue-500 animate-pulse',
       label: 'ASSIGNED',
-      text: 'text-violet-400',
+      text: 'text-blue-400',
     },
     in_progress: {
-      dot: 'bg-amber-500 animate-pulse',
+      dot: 'bg-orange-500 animate-pulse',
       label: 'IN PROGRESS',
-      text: 'text-amber-500',
+      text: 'text-orange-400',
     },
     resolved: {
       dot: 'bg-emerald-500',
@@ -93,24 +96,24 @@ export function StatusBadge({
   const c = config[displayState] ?? config['waiting'];
 
   return (
-    <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-bold">
+    <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-bold whitespace-nowrap">
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.dot}`} />
       <span className={c.text}>{c.label}</span>
     </div>
   );
 }
 
-// Operator avatar helper used across pages
+// Operator avatar + name chip
 const OPERATOR_COLORS: Record<string, string> = {
-  "Alex Chen": "bg-cyan-600",
-  "Sarah Kim": "bg-violet-600",
-  "Jordan Patel": "bg-amber-600",
+  "Alex Chen":          "bg-cyan-600",
+  "Sarah Kim":          "bg-violet-600",
+  "Jordan Patel":       "bg-amber-600",
   "Darren Watkins Jr.": "bg-emerald-600",
 };
 const OPERATOR_INITIALS: Record<string, string> = {
-  "Alex Chen": "AC",
-  "Sarah Kim": "SK",
-  "Jordan Patel": "JP",
+  "Alex Chen":          "AC",
+  "Sarah Kim":          "SK",
+  "Jordan Patel":       "JP",
   "Darren Watkins Jr.": "DW",
 };
 
@@ -131,7 +134,7 @@ export function OperatorChip({
   const initials = OPERATOR_INITIALS[name] || name.slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 whitespace-nowrap">
       <div className={`${sz} rounded-full ${color} flex items-center justify-center font-mono font-bold text-white flex-shrink-0`}>
         {initials}
       </div>

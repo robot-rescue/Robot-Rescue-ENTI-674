@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useGetIncidentLog } from "@workspace/api-client-react";
-import { SeverityBadge, StatusBadge, OperatorChip } from "../components/ui-helpers";
+import { SeverityBadge, OperatorChip } from "../components/ui-helpers";
 import { useSimulatedAlerts } from "../components/simulated-alerts-provider";
 import { SearchFilterBar, SeverityFilter, SortKey } from "../components/search-filter-bar";
 import { format, subDays, startOfDay } from "date-fns";
@@ -20,10 +20,7 @@ export default function IncidentLog() {
   const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
   const [dateRange, setDateRange] = useState<DateRange>("all");
 
-  // Merge API resolved logs + simulated resolved incidents
-  const allLogs = useMemo(() => {
-    return [...resolvedSimIncidents, ...apiLogs];
-  }, [resolvedSimIncidents, apiLogs]);
+  const allLogs = useMemo(() => [...resolvedSimIncidents, ...apiLogs], [resolvedSimIncidents, apiLogs]);
 
   const filtered = useMemo(() => {
     let list = allLogs;
@@ -45,7 +42,7 @@ export default function IncidentLog() {
         : subDays(new Date(), dateRange === "7d" ? 7 : 30);
       list = list.filter(l => l.resolvedAt && new Date(l.resolvedAt) >= cutoff);
     }
-    list = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       if (sortKey === "severity") {
         const s: Record<string, number> = { high: 0, medium: 1, low: 2 };
         return (s[a.severity] ?? 3) - (s[b.severity] ?? 3);
@@ -54,17 +51,12 @@ export default function IncidentLog() {
       const tb = b.resolvedAt ? new Date(b.resolvedAt).getTime() : 0;
       return sortKey === "oldest" ? ta - tb : tb - ta;
     });
-    return list;
   }, [allLogs, query, severityFilter, actionFilter, dateRange, sortKey]);
 
   const hasActiveFilters = query !== "" || severityFilter !== "all" || actionFilter !== "all" || dateRange !== "all";
 
   const clearFilters = () => {
-    setQuery("");
-    setSeverityFilter("all");
-    setActionFilter("all");
-    setDateRange("all");
-    setSortKey("newest");
+    setQuery(""); setSeverityFilter("all"); setActionFilter("all"); setDateRange("all"); setSortKey("newest");
   };
 
   return (
@@ -86,7 +78,7 @@ export default function IncidentLog() {
             <>
               <div className="w-px h-4 bg-border" />
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">SIMULATED</span>
+                <span className="text-muted-foreground">LIVE RESOLVED</span>
                 <span className="font-bold text-primary">{resolvedSimIncidents.length}</span>
               </div>
             </>
@@ -112,34 +104,27 @@ export default function IncidentLog() {
                 <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Date</span>
                 <div className="flex gap-1">
                   {(["all", "today", "7d", "30d"] as DateRange[]).map(r => (
-                    <button
-                      key={r}
-                      onClick={() => setDateRange(r)}
+                    <button key={r} onClick={() => setDateRange(r)}
                       className={`px-2.5 py-1 rounded text-[11px] font-mono border transition-all ${
                         dateRange === r
                           ? "bg-primary/20 text-primary border-primary/40"
                           : "text-muted-foreground border-transparent hover:border-border"
-                      }`}
-                    >
+                      }`}>
                       {r === "all" ? "All time" : r === "today" ? "Today" : r === "7d" ? "7 days" : "30 days"}
                     </button>
                   ))}
                 </div>
               </div>
-
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Action</span>
                 <div className="flex gap-1 flex-wrap">
                   {(["all", "reroute", "pause", "manual_override", "escalate"] as ActionFilter[]).map(act => (
-                    <button
-                      key={act}
-                      onClick={() => setActionFilter(act)}
+                    <button key={act} onClick={() => setActionFilter(act)}
                       className={`px-2.5 py-1 rounded text-[11px] font-mono border transition-all capitalize ${
                         actionFilter === act
                           ? "bg-primary/20 text-primary border-primary/40"
                           : "text-muted-foreground border-transparent hover:border-border"
-                      }`}
-                    >
+                      }`}>
                       {act.replace(/_/g, ' ')}
                     </button>
                   ))}
@@ -155,14 +140,14 @@ export default function IncidentLog() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-24">Robot</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-28">Robot ID</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Issue</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Location</th>
-                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Severity</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-24">Severity</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Operator</th>
-                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Action</th>
-                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell w-24">Res. Time</th>
-                <th className="text-right px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">Resolved At</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-36">Action Taken</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell w-28">Res. Time</th>
+                <th className="text-right px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground w-32">Resolved At</th>
               </tr>
             </thead>
             <tbody>
@@ -183,10 +168,8 @@ export default function IncidentLog() {
                   <td colSpan={8} className="h-32 text-center text-muted-foreground font-mono text-sm">
                     {hasActiveFilters ? (
                       <div>
-                        <p>No records match your search.</p>
-                        <button onClick={clearFilters} className="mt-2 text-primary text-xs hover:underline">
-                          Clear filters
-                        </button>
+                        <p>No records match your filters.</p>
+                        <button onClick={clearFilters} className="mt-2 text-primary text-xs hover:underline">Clear all filters</button>
                       </div>
                     ) : "No historical logs found."}
                   </td>
@@ -194,8 +177,12 @@ export default function IncidentLog() {
               ) : (
                 <AnimatePresence initial={false}>
                   {filtered.map((log, idx) => {
-                    const rowClass = log.severity === 'high' ? 'list-row-high' : log.severity === 'medium' ? 'list-row-medium' : 'list-row-low';
                     const isSim = log.id.startsWith('SIM-');
+                    const borderLeft = log.severity === 'high'
+                      ? "border-l-2 border-l-red-500/50"
+                      : log.severity === 'medium'
+                      ? "border-l-2 border-l-amber-500/40"
+                      : "border-l-2 border-l-transparent";
                     return (
                       <motion.tr
                         key={log.id}
@@ -203,37 +190,40 @@ export default function IncidentLog() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2, delay: idx < 5 ? idx * 0.03 : 0 }}
-                        className={`border-b border-border/30 alt-row transition-colors ${rowClass}`}
+                        className={`border-b border-border/30 hover:bg-secondary/30 transition-colors ${borderLeft}`}
                       >
-                        <td className="px-4 py-3">
-                          <div className="font-mono font-bold text-sm text-foreground">{log.robotId}</div>
-                          {isSim && <div className="text-[9px] font-mono text-primary/50">SIM</div>}
+                        {/* Robot ID — always one line */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-mono font-bold text-sm text-foreground">{log.robotId}</span>
+                          {isSim && (
+                            <span className="ml-2 text-[9px] font-mono text-primary/40 bg-primary/5 border border-primary/20 px-1 rounded align-middle">SIM</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-sm capitalize text-foreground">
-                          {log.issueType.replace(/_/g, ' ')}
+                        <td className="px-4 py-3 text-sm text-foreground capitalize max-w-[160px]">
+                          <span className="block truncate">{log.issueType.replace(/_/g, ' ')}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                          {log.location}
+                        <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell max-w-[160px]">
+                          <span className="block truncate">{log.location}</span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <SeverityBadge severity={log.severity} />
                         </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
+                        <td className="px-4 py-3 hidden md:table-cell whitespace-nowrap">
                           <OperatorChip name={log.assignedTo} />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-sm text-emerald-400">
                             <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
                             <span className="capitalize">{log.actionTaken?.replace(/_/g, ' ') || 'Resolved'}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 hidden lg:table-cell">
+                        <td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap">
                           <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
                             <Clock className="w-3 h-3" />
                             {log.responseTimeSeconds ? `${log.responseTimeSeconds}s` : '--'}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
+                        <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground whitespace-nowrap">
                           {log.resolvedAt ? format(new Date(log.resolvedAt), "MMM d, HH:mm") : '--'}
                         </td>
                       </motion.tr>

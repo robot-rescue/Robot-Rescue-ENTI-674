@@ -60,14 +60,13 @@ const ISSUE_TYPES = Object.values(IncidentIssueType);
 const SEVERITIES = Object.values(IncidentSeverity);
 const ACTIONS = ['reroute', 'pause', 'manual_override', 'escalate'] as const;
 
-const OPERATORS = ['Alex Chen', 'Sarah Kim', 'Jordan Patel', 'Darren Watkins Jr.'];
+export const SIM_OPERATORS = ['Alex Chen', 'Sarah Kim', 'Jordan Patel', 'Darren Watkins Jr.'];
 const MAX_PER_OPERATOR = 4;
 
-// Timing (ms) — keep these fast enough to feel alive but not chaotic
-const ASSIGN_DELAY   = () => 1500  + Math.random() * 2000;   // 1.5–3.5s
-const PROGRESS_DELAY = () => 4000  + Math.random() * 6000;   // 4–10s
-const RESOLVE_DELAY  = () => 12000 + Math.random() * 18000;  // 12–30s
-const SPAWN_INTERVAL = 18000; // new incident every 18s
+// Timing (ms)
+const PROGRESS_DELAY = () => 4000  + Math.random() * 6000;   // 4–10s after assignment
+const RESOLVE_DELAY  = () => 12000 + Math.random() * 18000;  // 12–30s after in_progress
+const SPAWN_INTERVAL = 18000;
 
 const DESCRIPTIONS: Record<string, string> = {
   obstacle_detected: 'Unknown object detected at intersection point. Visual sensors unable to classify.',
@@ -80,13 +79,13 @@ const DESCRIPTIONS: Record<string, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getLeastBusyOperator(incidents: Incident[]): string | null {
+export function getLeastBusyOperator(incidents: Incident[]): string | null {
   const loads: Record<string, number> = {};
-  for (const op of OPERATORS) loads[op] = 0;
+  for (const op of SIM_OPERATORS) loads[op] = 0;
   for (const inc of incidents) {
     if (inc.assignedTo && loads[inc.assignedTo] !== undefined) loads[inc.assignedTo]++;
   }
-  const available = OPERATORS.filter(op => loads[op] < MAX_PER_OPERATOR);
+  const available = SIM_OPERATORS.filter(op => loads[op] < MAX_PER_OPERATOR);
   if (!available.length) return null;
   const minLoad = Math.min(...available.map(op => loads[op]));
   const tied = available.filter(op => loads[op] === minLoad);
@@ -108,7 +107,7 @@ function generateFakeIncident(): Incident {
     resolvedAt: null,
     actionTaken: null,
     responseTimeSeconds: null,
-    assignedTo: null,
+    assignedTo: null,  // Always starts unassigned
     sensorData: {
       battery: Math.floor(Math.random() * 100),
       speed: parseFloat((Math.random() * 4).toFixed(1)),
@@ -132,7 +131,6 @@ export function SimulatedAlertsProvider({ children }: { children: React.ReactNod
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
 
-  // Refs so setTimeout callbacks always see latest state
   const incidentsRef = useRef<Incident[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
 
@@ -141,15 +139,12 @@ export function SimulatedAlertsProvider({ children }: { children: React.ReactNod
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   const pushActivity = useCallback((event: Omit<ActivityEvent, 'id'>) => {
-    const e: ActivityEvent = { ...event, id: `act-${Date.now()}-${Math.random().toString(36).substr(2,5)}` };
+    const e: ActivityEvent = { ...event, id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` };
     setActivityLog(prev => [e, ...prev].slice(0, 50));
   }, []);
 
   const pushToast = useCallback((item: Omit<ToastItem, 'id'>) => {
-    setToastQueue(prev => [
-      ...prev,
-      { ...item, id: `toast-${Date.now()}-${Math.random()}` },
-    ]);
+    setToastQueue(prev => [...prev, { ...item, id: `toast-${Date.now()}-${Math.random()}` }]);
   }, []);
 
   const addNotification = useCallback((incident: Incident) => {
@@ -167,132 +162,109 @@ export function SimulatedAlertsProvider({ children }: { children: React.ReactNod
     if (timers) { timers.forEach(clearTimeout); timersRef.current.delete(id); }
   }, []);
 
-  // ── Lifecycle: schedule auto-assign → in_progress → resolve ───────────────
+  // ── Lifecycle: in_progress → resolve (starts ONLY after assignment) ────────
+  //
+  // DESIGN: Unassigned incidents stay in WAITING forever until a human (or the
+  // "Auto Assign" button) assigns an operator.  Only then does this function
+  // start the countdown that moves the incident through in_progress → resolved.
 
-  const scheduleLifecycle = useCallback((incident: Incident) => {
+  const scheduleProgressAndResolve = useCallback((incident: Incident, operator: string) => {
     cancelTimers(incident.id);
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // Step 1 – Auto-assign
+    // Step 1 – Transition to In Progress (4–10 s after assignment)
     const t1 = setTimeout(() => {
-      const operator = getLeastBusyOperator(incidentsRef.current);
-      if (!operator) return; // all operators full
+      const current = incidentsRef.current.find(i => i.id === incident.id);
+      if (!current?.assignedTo) return; // Operator was removed before timer fired
 
       setSimulatedIncidents(prev =>
-        prev.map(inc => inc.id === incident.id ? { ...inc, assignedTo: operator } : inc)
+        prev.map(inc => inc.id === incident.id ? { ...inc, status: IncidentStatus.in_progress } : inc)
       );
       pushActivity({
-        type: 'assigned',
-        message: `Assigned to ${operator}`,
-        detail: `${incident.robotId} · ${incident.issueType.replace(/_/g, ' ')}`,
+        type: 'in_progress',
+        message: `${incident.robotId} now in progress`,
+        detail: `Response initiated · ${operator}`,
         time: new Date(),
         severity: incident.severity,
         incidentId: incident.id,
         robotId: incident.robotId,
       });
 
-      // Step 2 – In Progress
+      // Step 2 – Resolve (12–30 s after in_progress)
       const t2 = setTimeout(() => {
-        setSimulatedIncidents(prev =>
-          prev.map(inc => inc.id === incident.id ? { ...inc, status: IncidentStatus.in_progress } : inc)
-        );
-        pushActivity({
-          type: 'in_progress',
-          message: `${incident.robotId} now in progress`,
-          detail: `Operator response initiated · ${operator}`,
-          time: new Date(),
-          severity: incident.severity,
-          incidentId: incident.id,
-          robotId: incident.robotId,
+        const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
+        const resolvedAt = new Date().toISOString();
+
+        setSimulatedIncidents(prev => {
+          const inc = prev.find(i => i.id === incident.id);
+          if (inc) {
+            const responseTimeSeconds = parseFloat(
+              ((new Date(resolvedAt).getTime() - new Date(inc.timestamp).getTime()) / 1000).toFixed(1)
+            );
+            const resolved: Incident = {
+              ...inc,
+              status: IncidentStatus.resolved,
+              actionTaken: action as string,
+              resolvedAt,
+              responseTimeSeconds,
+              assignedTo: inc.assignedTo || operator,
+            };
+            setResolvedSimIncidents(r => [resolved, ...r].slice(0, 60));
+            pushActivity({
+              type: 'resolved',
+              message: `Resolved by ${inc.assignedTo || operator}`,
+              detail: `${inc.robotId} · ${action.replace(/_/g, ' ')} · ${responseTimeSeconds}s`,
+              time: new Date(),
+              severity: inc.severity,
+              incidentId: inc.id,
+              robotId: inc.robotId,
+            });
+            pushToast({
+              title: '✓ Incident resolved',
+              description: `${inc.robotId} resolved by ${inc.assignedTo || operator} via ${action.replace(/_/g, ' ')}`,
+              variant: 'default',
+            });
+          }
+          return prev.filter(i => i.id !== incident.id);
         });
-
-        // Step 3 – Resolve
-        const t3 = setTimeout(() => {
-          const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
-          const resolvedAt = new Date().toISOString();
-
-          setSimulatedIncidents(prev => {
-            const inc = prev.find(i => i.id === incident.id);
-            if (inc) {
-              const responseTimeSeconds = parseFloat(
-                ((new Date(resolvedAt).getTime() - new Date(inc.timestamp).getTime()) / 1000).toFixed(1)
-              );
-              const resolved: Incident = {
-                ...inc,
-                status: IncidentStatus.resolved,
-                actionTaken: action as string,
-                resolvedAt,
-                responseTimeSeconds,
-                assignedTo: inc.assignedTo || operator,
-              };
-              setResolvedSimIncidents(r => [resolved, ...r].slice(0, 60));
-              pushActivity({
-                type: 'resolved',
-                message: `Resolved by ${inc.assignedTo || operator}`,
-                detail: `${inc.robotId} · ${action.replace(/_/g, ' ')} · ${responseTimeSeconds}s`,
-                time: new Date(),
-                severity: inc.severity,
-                incidentId: inc.id,
-                robotId: inc.robotId,
-              });
-              pushToast({
-                title: `✓ Incident resolved`,
-                description: `${inc.robotId} resolved by ${inc.assignedTo || operator} via ${action.replace(/_/g, ' ')}`,
-                variant: 'default',
-              });
-            }
-            return prev.filter(i => i.id !== incident.id);
-          });
-          cancelTimers(incident.id);
-        }, RESOLVE_DELAY());
-        timers.push(t3);
-      }, PROGRESS_DELAY());
+        cancelTimers(incident.id);
+      }, RESOLVE_DELAY());
       timers.push(t2);
-    }, ASSIGN_DELAY());
+    }, PROGRESS_DELAY());
     timers.push(t1);
 
     timersRef.current.set(incident.id, timers);
   }, [cancelTimers, pushActivity, pushToast]);
 
-  // ── Spawn new incidents periodically ──────────────────────────────────────
+  // ── Spawn new incidents periodically (always UNASSIGNED) ──────────────────
 
   useEffect(() => {
     const spawnIncident = () => {
       const newIncident = generateFakeIncident();
-      setSimulatedIncidents(prev => {
-        // Cap at 12 active incidents total
-        const updated = [newIncident, ...prev].slice(0, 12);
-        return updated;
-      });
+      setSimulatedIncidents(prev => [newIncident, ...prev].slice(0, 12));
       addNotification(newIncident);
       pushActivity({
         type: 'created',
-        message: `New incident: ${newIncident.robotId}`,
+        message: `New alert: ${newIncident.robotId}`,
         detail: `${newIncident.issueType.replace(/_/g, ' ')} · ${newIncident.location}`,
         time: new Date(),
         severity: newIncident.severity,
         incidentId: newIncident.id,
         robotId: newIncident.robotId,
       });
-      scheduleLifecycle(newIncident);
+      // No automatic assignment — incidents wait for human action
     };
 
-    // Initial spawn after short delay
-    const initTimer = setTimeout(spawnIncident, 2000);
+    const initTimer = setTimeout(spawnIncident, 1500);
     const interval = setInterval(spawnIncident, SPAWN_INTERVAL);
-    return () => {
-      clearTimeout(initTimer);
-      clearInterval(interval);
-    };
-  }, [addNotification, pushActivity, scheduleLifecycle]);
+    return () => { clearTimeout(initTimer); clearInterval(interval); };
+  }, [addNotification, pushActivity]);
 
   // ── Cleanup timers on unmount ──────────────────────────────────────────────
 
   useEffect(() => {
     const ref = timersRef.current;
-    return () => {
-      ref.forEach(timers => timers.forEach(clearTimeout));
-    };
+    return () => { ref.forEach(timers => timers.forEach(clearTimeout)); };
   }, []);
 
   // ── Manual operations ──────────────────────────────────────────────────────
@@ -303,26 +275,48 @@ export function SimulatedAlertsProvider({ children }: { children: React.ReactNod
   }, [cancelTimers]);
 
   const manualAssign = useCallback((incidentId: string, operator: string | null) => {
+    const incident = incidentsRef.current.find(i => i.id === incidentId);
+    if (!incident) return;
+
     setSimulatedIncidents(prev =>
-      prev.map(inc => inc.id === incidentId ? { ...inc, assignedTo: operator } : inc)
+      prev.map(inc => {
+        if (inc.id !== incidentId) return inc;
+        // If clearing assignment and was in_progress, roll back to waiting
+        const newStatus = !operator && inc.status === IncidentStatus.in_progress
+          ? IncidentStatus.waiting
+          : inc.status;
+        return { ...inc, assignedTo: operator, status: newStatus };
+      })
     );
+
     if (operator) {
       pushActivity({
         type: 'assigned',
-        message: `Manually assigned to ${operator}`,
-        detail: `Operator override via assignments panel`,
+        message: `Assigned to ${operator}`,
+        detail: `${incident.robotId} · ${incident.issueType.replace(/_/g, ' ')}`,
         time: new Date(),
+        severity: incident.severity,
         incidentId,
-        robotId: incidentsRef.current.find(i => i.id === incidentId)?.robotId || '??',
+        robotId: incident.robotId,
       });
+      // Lifecycle begins NOW — only because a human assigned it
+      scheduleProgressAndResolve(incident, operator);
+    } else {
+      // Assignment cleared — cancel any pending timers
+      cancelTimers(incidentId);
     }
-  }, [pushActivity]);
+  }, [pushActivity, scheduleProgressAndResolve, cancelTimers]);
 
   const forceAutoAssign = useCallback(() => {
-    const unassigned = incidentsRef.current.filter(i => !i.assignedTo);
+    // Build a mutable working copy to track workloads as we assign
+    const working = [...incidentsRef.current];
+    const unassigned = working.filter(i => !i.assignedTo);
     for (const inc of unassigned) {
-      const op = getLeastBusyOperator(incidentsRef.current);
+      const op = getLeastBusyOperator(working);
       if (!op) break;
+      // Update working copy so next iteration sees updated loads
+      const idx = working.findIndex(i => i.id === inc.id);
+      if (idx !== -1) working[idx] = { ...working[idx], assignedTo: op };
       manualAssign(inc.id, op);
     }
   }, [manualAssign]);
