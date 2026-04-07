@@ -3,10 +3,12 @@ import { useRoute, useLocation } from "wouter";
 import { useGetIncident, useUpdateIncident, getListIncidentsQueryKey, getGetIncidentLogQueryKey, UpdateIncidentBodyActionTaken } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSimulatedAlerts } from "../components/simulated-alerts-provider";
+import { useMessages } from "../components/messages-provider";
 import { IncidentTimer, SeverityBadge, StatusBadge } from "../components/ui-helpers";
 import {
   ArrowLeft, Battery, Bot, Cpu, Navigation, PauseOctagon,
   ShieldAlert, Signal, Thermometer, AlertTriangle, User, ChevronDown, Brain, Zap,
+  MessageSquare, Radio, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -387,8 +389,20 @@ export default function IncidentDetail() {
   const assignRef = useRef<HTMLDivElement>(null);
 
   const { simulatedIncidents, removeSimulatedIncident } = useSimulatedAlerts();
+  const { conversations } = useMessages();
   const isSimulated = id.startsWith("SIM-");
   const simulatedData = isSimulated ? simulatedIncidents.find(inc => inc.id === id) : null;
+
+  // Collect all messages across all conversations that reference this incident ID
+  const relatedMessages = useMemo(() => {
+    const out: { operatorName: string; msg: import("../components/messages-provider").ChatMessage }[] = [];
+    for (const conv of conversations) {
+      for (const msg of conv.messages) {
+        if (msg.incidentId === id) out.push({ operatorName: conv.operatorName, msg });
+      }
+    }
+    return out.sort((a, b) => a.msg.timestamp.getTime() - b.msg.timestamp.getTime());
+  }, [conversations, id]);
 
   const { data: apiData, isLoading } = useGetIncident(id, {
     query: { enabled: !!id && !isSimulated, queryKey: ['/api/incidents', id] }
@@ -640,6 +654,39 @@ export default function IncidentDetail() {
                 </Button>
               </div>
             </div>
+
+            {/* Related Conversation */}
+            {relatedMessages.length > 0 && (
+              <div className="bg-card border border-border rounded-lg p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-mono text-muted-foreground uppercase flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Related Conversation
+                  </h3>
+                  <button
+                    onClick={() => setLocation("/messages")}
+                    className="text-[10px] font-mono text-primary/70 hover:text-primary flex items-center gap-1 transition-colors"
+                  >
+                    Open <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {relatedMessages.map(({ operatorName, msg }) => (
+                    <div key={msg.id} className="flex items-start gap-2">
+                      <Radio className="w-3 h-3 text-muted-foreground/50 flex-shrink-0 mt-1" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[10px] font-mono text-muted-foreground/60 uppercase">{operatorName}</span>
+                          <span className="text-[9px] font-mono text-muted-foreground/30">
+                            {msg.timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{msg.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

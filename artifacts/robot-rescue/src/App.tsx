@@ -6,11 +6,13 @@ import { useEffect } from "react";
 
 import { AppLayout } from "@/components/layout/app-layout";
 import { SimulatedAlertsProvider, useSimulatedAlerts } from "@/components/simulated-alerts-provider";
+import { MessagesProvider } from "@/components/messages-provider";
 import Dashboard from "@/pages/dashboard";
 import IncidentDetail from "@/pages/incident-detail";
 import IncidentLog from "@/pages/incident-log";
 import Analytics from "@/pages/analytics";
 import Assignments from "@/pages/assignments";
+import Messages from "@/pages/messages";
 import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,6 +44,7 @@ function Router() {
         <Route path="/assignments" component={Assignments} />
         <Route path="/log" component={IncidentLog} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/messages" component={Messages} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
@@ -57,10 +60,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SimulatedAlertsProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
+          <MessagesProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </MessagesProvider>
         </SimulatedAlertsProvider>
       </TooltipProvider>
     </QueryClientProvider>
