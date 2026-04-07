@@ -54,38 +54,143 @@ function minsAgo(m: number): Date {
   return new Date(Date.now() - m * 60_000);
 }
 
-// ─── Auto-reply pool ─────────────────────────────────────────────────────────
+// ─── Context-aware reply engine ───────────────────────────────────────────────
 
-const AUTO_REPLIES: Record<string, string[]> = {
-  "Alex Chen": [
-    "Copy that. I'll handle it.",
-    "On it — updating route now.",
-    "Understood. Will report back shortly.",
-    "Confirmed. Running diagnostics.",
-    "Roger. Status update incoming.",
+type ReplyIntent =
+  | "gratitude"
+  | "acknowledgement"
+  | "check_request"
+  | "instruction"
+  | "question"
+  | "praise"
+  | "negative"
+  | "default";
+
+function detectIntent(text: string): ReplyIntent {
+  const t = text.toLowerCase().trim();
+
+  // Gratitude
+  if (/\b(thanks|thank you|thx|ty|cheers|much appreciated)\b/.test(t)) return "gratitude";
+
+  // Praise
+  if (/\b(good work|great job|well done|nice work|nice catch|excellent|perfect|awesome|solid|impressive)\b/.test(t)) return "praise";
+
+  // Acknowledgement / short affirmative
+  if (/^(ok|okay|sure|got it|understood|copy|roger|alright|noted|right|yep|yes|yeah|k|kk|10-4|10 4)\b/.test(t)) return "acknowledgement";
+
+  // Question
+  if (t.endsWith("?") || /\b(what|where|when|how|why|who|which|status|update|progress)\b/.test(t)) return "question";
+
+  // Negative / concern
+  if (/\b(no|not|issue|problem|fail|error|wrong|bad|broken|down|offline)\b/.test(t)) return "negative";
+
+  // Check / inspect request
+  if (/\b(check|inspect|look|verify|confirm|scan|ping|diagnose|monitor|watch|track|observe)\b/.test(t)) return "check_request";
+
+  // Instruction / task imperative
+  if (/\b(go|head|move|reroute|fix|resolve|handle|proceed|activate|restart|stop|halt|start|continue|run|execute|deploy|reset|clear|dispatch|send|bring|get|take|assign|patch|update|report)\b/.test(t)) return "instruction";
+
+  return "default";
+}
+
+// Per-intent reply pools (operator-neutral but professional)
+const INTENT_REPLIES: Record<ReplyIntent, string[]> = {
+  gratitude: [
+    "No problem.",
+    "Anytime.",
+    "Glad to assist.",
+    "All good.",
+    "That's what we're here for.",
+    "Noted.",
   ],
-  "Sarah Kim": [
-    "Acknowledged. Monitoring closely.",
-    "Understood, coordinating with floor team.",
-    "Copy. Battery levels being tracked.",
-    "Will escalate if status changes.",
-    "Confirmed. Proceeding with protocol.",
+  praise: [
+    "Appreciate it.",
+    "Thanks, staying on it.",
+    "Team effort.",
+    "All good here.",
+    "Keeping the floor running.",
   ],
-  "Jordan Patel": [
-    "Got it. Running sensor checks.",
-    "Acknowledged. Rerouting now.",
-    "Copy that. Diagnostic underway.",
-    "Understood. Will keep you posted.",
-    "On it. Checking comms relay.",
+  acknowledgement: [
+    "👍",
+    "Acknowledged.",
+    "Copy that.",
+    "Standing by.",
+    "Understood.",
+    "Confirmed.",
   ],
-  "Darren Watkins Jr.": [
-    "Copy. En route to affected zone.",
-    "Acknowledged. Activating override.",
-    "Understood. Standby for status.",
-    "Confirmed. Assessing damage now.",
-    "On it. Manual intervention initiated.",
+  question: [
+    "Stand by, checking.",
+    "Let me verify — back shortly.",
+    "Pulling data now.",
+    "Running query, one moment.",
+    "Confirming status.",
+  ],
+  check_request: [
+    "Checking now.",
+    "On it — pulling diagnostics.",
+    "Running scan.",
+    "Querying sensor feed.",
+    "Initiating check sequence.",
+    "Scanning zone.",
+  ],
+  instruction: [
+    "Acknowledged. Executing.",
+    "On it.",
+    "Copy. Moving to execute.",
+    "In progress.",
+    "Confirmed — proceeding.",
+    "Understood. Starting now.",
+    "Command received.",
+  ],
+  negative: [
+    "Copy. Investigating.",
+    "Acknowledged — escalating if needed.",
+    "Understood. Running diagnostics.",
+    "On it. Will report findings.",
+    "Flagged for review.",
+  ],
+  default: [
+    "Copy that.",
+    "Acknowledged.",
+    "Understood.",
+    "Roger.",
+    "Confirmed.",
+    "Noted.",
+    "Standing by.",
   ],
 };
+
+// Operator-specific overrides for certain intents to add personality
+const OP_OVERRIDES: Record<string, Partial<Record<ReplyIntent, string[]>>> = {
+  "Alex Chen": {
+    default:     ["Copy. I'm on it.", "Acknowledged.", "Roger that.", "Confirmed.", "Understood."],
+    instruction: ["Copy. Executing now.", "On it — updating route.", "Confirmed. In progress.", "Command received."],
+  },
+  "Sarah Kim": {
+    default:     ["Acknowledged. Monitoring.", "Confirmed.", "Copy.", "Understood. Proceeding.", "Noted."],
+    question:    ["Pulling data now.", "Checking status feed.", "Verifying — stand by.", "Running query."],
+  },
+  "Jordan Patel": {
+    default:     ["Copy that.", "Acknowledged.", "Roger.", "Understood. On standby.", "Confirmed."],
+    check_request: ["Checking now.", "Running sensor sweep.", "Diagnostic underway.", "On it — scanning."],
+  },
+  "Darren Watkins Jr.": {
+    default:     ["Copy. En route.", "Acknowledged.", "Confirmed. Moving.", "Understood.", "Roger."],
+    instruction: ["Copy. Activating override.", "On it. Manual intervention.", "Confirmed. Executing.", "Moving now."],
+  },
+};
+
+function pickReply(operatorName: string, userText: string): string {
+  const intent = detectIntent(userText);
+
+  // Prefer operator-specific override for this intent
+  const opOverrides = OP_OVERRIDES[operatorName];
+  const pool = (opOverrides?.[intent] ?? []).length > 0
+    ? opOverrides![intent]!
+    : INTENT_REPLIES[intent];
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 // ─── Preloaded seed conversations ─────────────────────────────────────────────
 
@@ -231,8 +336,7 @@ export function MessagesProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       setTypingOps(prev => prev.filter(op => op !== operatorName));
 
-      const pool = AUTO_REPLIES[operatorName] ?? ["Acknowledged."];
-      const reply = pool[Math.floor(Math.random() * pool.length)];
+      const reply = pickReply(operatorName, text);
 
       setConversations(prev =>
         prev.map(conv =>
