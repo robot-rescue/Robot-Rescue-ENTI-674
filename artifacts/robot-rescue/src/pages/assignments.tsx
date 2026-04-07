@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useListIncidents, useUpdateIncident, getListIncidentsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSimulatedAlerts, getLeastBusyOperator } from "../components/simulated-alerts-provider";
+import { useMessages } from "../components/messages-provider";
 import { SeverityBadge, StatusBadge, OperatorChip } from "../components/ui-helpers";
 import { SearchFilterBar, SeverityFilter, SortKey } from "../components/search-filter-bar";
 import { Users, ChevronDown, MapPin, CheckCircle2, UserMinus, ExternalLink, Zap, AlertCircle } from "lucide-react";
@@ -103,6 +104,7 @@ function AssignmentDropdown({
 export default function Assignments() {
   const { data: apiIncidents = [], isLoading } = useListIncidents({ status: "active" });
   const { simulatedIncidents, manualAssign, forceAutoAssign } = useSimulatedAlerts();
+  const { addSystemMessage } = useMessages();
   const updateIncident = useUpdateIncident();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -159,6 +161,16 @@ export default function Assignments() {
   const inProgressCount = allActive.filter(i => i.status === "in_progress").length;
 
   const handleAssign = (incidentId: string, robotId: string, isSimulated: boolean, operator: string | null) => {
+    if (operator) {
+      const incident = allActive.find(i => i.id === incidentId);
+      const issueLabel = incident?.issueType.replace(/_/g, ' ') ?? 'unknown issue';
+      addSystemMessage(
+        operator,
+        `New assignment: ${robotId} — ${issueLabel} (${incident?.location ?? ''}).`,
+        incidentId,
+      );
+    }
+
     if (isSimulated) {
       manualAssign(incidentId, operator);
       toast({
