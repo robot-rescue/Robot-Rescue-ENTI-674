@@ -8,13 +8,11 @@ import { SeverityBadge } from "../ui-helpers";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 
-type ActivityEvent = {
-  id: string;
-  type: "new_incident" | "assigned" | "resolved";
-  message: string;
-  sub: string;
-  time: Date;
-  severity?: string;
+const EVENT_ICONS = {
+  created: { color: 'text-primary', bg: 'bg-primary/10', dot: 'bg-primary' },
+  assigned: { color: 'text-violet-400', bg: 'bg-violet-500/10', dot: 'bg-violet-400' },
+  in_progress: { color: 'text-amber-400', bg: 'bg-amber-500/10', dot: 'bg-amber-400' },
+  resolved: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400' },
 };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,27 +20,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [feedOpen, setFeedOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
-  const { notifications, unreadCount, markAllRead, markOneRead, simulatedIncidents } = useSimulatedAlerts();
+
+  const {
+    notifications, unreadCount, markAllRead, markOneRead,
+    simulatedIncidents, activityLog,
+  } = useSimulatedAlerts();
+
   const { data: apiIncidents = [] } = useListIncidents({ status: "active" });
 
   const totalActive = apiIncidents.length + simulatedIncidents.length;
   const criticalCount = [...apiIncidents, ...simulatedIncidents].filter(i => i.severity === 'high').length;
-
-  // Build activity feed from notifications + resolved incidents
-  const activityEvents: ActivityEvent[] = notifications.slice(0, 15).map(n => ({
-    id: n.id,
-    type: "new_incident" as const,
-    message: `New incident: ${n.incident.robotId}`,
-    sub: `${n.incident.issueType.replace(/_/g, ' ')} · ${n.incident.location}`,
-    time: new Date(n.timestamp),
-    severity: n.incident.severity,
-  }));
+  const unassignedCount = [...apiIncidents, ...simulatedIncidents].filter(i => !i.assignedTo).length;
+  const inProgressCount = [...apiIncidents, ...simulatedIncidents].filter(i => i.status === 'in_progress').length;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
-        setBellOpen(false);
-      }
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -63,9 +56,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="h-14 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between px-6 z-20">
           <div className="font-sans font-bold tracking-wider text-sm">ROBOT RESCUE</div>
 
-          <div className="flex items-center gap-5">
-            {/* System status pills */}
-            <div className="hidden sm:flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            {/* Live system status pills */}
+            <div className="hidden lg:flex items-center gap-3">
               <div className="flex items-center gap-1.5 text-xs font-mono">
                 <Bot className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="text-muted-foreground">ONLINE</span>
@@ -83,6 +76,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-muted-foreground">CRITICAL</span>
                 <span className={`font-bold ${criticalCount > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>{criticalCount}</span>
               </div>
+              {inProgressCount > 0 && (
+                <>
+                  <div className="w-px h-3.5 bg-border" />
+                  <div className="flex items-center gap-1.5 text-xs font-mono">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-amber-500 font-bold">{inProgressCount} IN PROGRESS</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs font-mono">
@@ -92,17 +94,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Live Activity Feed toggle */}
+            {/* Activity Feed toggle */}
             <button
               onClick={() => { setFeedOpen(v => !v); setBellOpen(false); }}
               className={`flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded border transition-all ${
-                feedOpen ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                feedOpen
+                  ? 'border-primary/50 text-primary bg-primary/10'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
               }`}
-              title="Live Activity Feed"
             >
               <Radio className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Activity</span>
-              {activityEvents.length > 0 && (
+              {activityLog.length > 0 && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               )}
             </button>
@@ -110,9 +113,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Notification bell */}
             <div ref={bellRef} className="relative">
               <button
-                onClick={() => { setBellOpen(v => !v); if (!bellOpen) markAllRead(); setFeedOpen(false); }}
+                onClick={() => { setBellOpen(v => !v); setFeedOpen(false); }}
                 className="text-muted-foreground hover:text-foreground transition-colors relative p-1"
-                aria-label="Notifications"
               >
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
@@ -134,9 +136,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
                       <div className="text-xs font-mono font-bold uppercase tracking-widest text-muted-foreground">
                         Alerts
-                        {unreadCount > 0 && (
-                          <span className="ml-2 text-primary">({unreadCount} new)</span>
-                        )}
+                        {unreadCount > 0 && <span className="ml-2 text-primary">({unreadCount} new)</span>}
                       </div>
                       {notifications.some(n => !n.read) && (
                         <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] font-mono text-primary hover:text-primary/80 transition-colors">
@@ -195,10 +195,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {feedOpen && (
               <motion.aside
                 initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 280, opacity: 1 }}
+                animate={{ width: 288, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.2, ease: "easeInOut" }}
                 className="border-l border-border bg-card/50 backdrop-blur-sm flex flex-col overflow-hidden flex-shrink-0"
+                style={{ minWidth: 0 }}
               >
                 <div className="h-14 flex items-center justify-between px-4 border-b border-border flex-shrink-0">
                   <div className="flex items-center gap-2">
@@ -210,63 +211,67 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                  {activityEvents.length === 0 ? (
+                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+                  {activityLog.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-center">
                       <Radio className="w-8 h-8 mb-3 opacity-20" />
                       <p className="text-xs font-mono">No activity yet.</p>
-                      <p className="text-[10px] font-mono opacity-60 mt-1">Events appear in real time.</p>
+                      <p className="text-[10px] font-mono opacity-60 mt-1">Events will appear here in real time.</p>
                     </div>
                   ) : (
                     <AnimatePresence initial={false}>
-                      {activityEvents.map((event, idx) => (
-                        <motion.div
-                          key={event.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          transition={{ delay: idx * 0.02 }}
-                          className="bg-secondary/30 border border-border/50 rounded-md p-3 hover:border-primary/20 transition-colors"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                              event.severity === 'high' ? 'bg-red-500' :
-                              event.severity === 'medium' ? 'bg-amber-500' : 'bg-blue-500'
-                            }`} />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                              {event.type === 'new_incident' ? 'NEW INCIDENT' : event.type === 'assigned' ? 'ASSIGNED' : 'RESOLVED'}
-                            </span>
-                            <span className="ml-auto text-[9px] font-mono text-muted-foreground/50">
-                              {formatDistanceToNow(event.time, { addSuffix: true })}
-                            </span>
-                          </div>
-                          <div className="text-xs font-mono text-foreground font-medium">{event.message}</div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{event.sub}</div>
-                        </motion.div>
-                      ))}
+                      {activityLog.map((event) => {
+                        const style = EVENT_ICONS[event.type] || EVENT_ICONS.created;
+                        return (
+                          <motion.div
+                            key={event.id}
+                            initial={{ opacity: 0, x: 24, height: 0 }}
+                            animate={{ opacity: 1, x: 0, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className={`rounded-md border border-border/40 p-2.5 ${style.bg}`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
+                              <span className={`text-[9px] font-mono font-bold uppercase tracking-wider ${style.color}`}>
+                                {event.type.replace(/_/g, ' ')}
+                              </span>
+                              <span className="ml-auto text-[9px] font-mono text-muted-foreground/50 flex-shrink-0">
+                                {formatDistanceToNow(event.time, { addSuffix: true })}
+                              </span>
+                            </div>
+                            <div className={`text-[11px] font-mono font-semibold ${style.color}`}>{event.message}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{event.detail}</div>
+                          </motion.div>
+                        );
+                      })}
                     </AnimatePresence>
                   )}
                 </div>
 
-                {/* Fleet summary */}
+                {/* Fleet summary grid */}
                 <div className="border-t border-border p-3 flex-shrink-0">
-                  <div className="text-[10px] font-mono text-muted-foreground uppercase mb-2 tracking-wider">Fleet Summary</div>
+                  <div className="text-[10px] font-mono text-muted-foreground uppercase mb-2 tracking-wider">Fleet Status</div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <div className="bg-secondary/50 rounded px-2 py-1.5 text-center">
-                      <div className="text-xs font-bold text-emerald-500">{Math.max(0, 10 - totalActive)}</div>
-                      <div className="text-[9px] font-mono text-muted-foreground">Online</div>
+                    <div className="bg-secondary/40 rounded px-2 py-2 text-center">
+                      <div className="text-sm font-bold text-emerald-500">{Math.max(0, 10 - totalActive)}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">Online</div>
                     </div>
-                    <div className="bg-secondary/50 rounded px-2 py-1.5 text-center">
-                      <div className="text-xs font-bold text-primary">{totalActive}</div>
-                      <div className="text-[9px] font-mono text-muted-foreground">Active</div>
+                    <div className="bg-secondary/40 rounded px-2 py-2 text-center">
+                      <div className="text-sm font-bold text-primary">{totalActive}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">Active</div>
                     </div>
-                    <div className="bg-secondary/50 rounded px-2 py-1.5 text-center">
-                      <div className={`text-xs font-bold ${criticalCount > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>{criticalCount}</div>
-                      <div className="text-[9px] font-mono text-muted-foreground">Critical</div>
+                    <div className="bg-secondary/40 rounded px-2 py-2 text-center">
+                      <div className={`text-sm font-bold ${criticalCount > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>{criticalCount}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">Critical</div>
                     </div>
-                    <div className="bg-secondary/50 rounded px-2 py-1.5 text-center">
-                      <div className="text-xs font-bold text-amber-500">{[...apiIncidents, ...simulatedIncidents].filter(i => !i.assignedTo).length}</div>
-                      <div className="text-[9px] font-mono text-muted-foreground">Unassigned</div>
+                    <div className="bg-secondary/40 rounded px-2 py-2 text-center">
+                      <div className={`text-sm font-bold ${inProgressCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{inProgressCount}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">In Progress</div>
+                    </div>
+                    <div className="bg-secondary/40 rounded px-2 py-2 text-center col-span-2">
+                      <div className={`text-sm font-bold ${unassignedCount > 0 ? 'text-amber-400' : 'text-emerald-500'}`}>{unassignedCount}</div>
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">Unassigned</div>
                     </div>
                   </div>
                 </div>

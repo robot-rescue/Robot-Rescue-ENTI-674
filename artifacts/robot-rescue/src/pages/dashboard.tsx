@@ -234,7 +234,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
-                            <StatusBadge status={incident.status} />
+                            <StatusBadge status={incident.status} assignedTo={incident.assignedTo} />
                             <IncidentTimer timestamp={incident.timestamp} />
                           </div>
                         </div>
@@ -283,7 +283,7 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{incident.location}</td>
                       <td className="px-4 py-3"><SeverityBadge severity={incident.severity} /></td>
-                      <td className="px-4 py-3"><StatusBadge status={incident.status} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={incident.status} assignedTo={incident.assignedTo} /></td>
                       <td className="px-4 py-3 text-right"><IncidentTimer timestamp={incident.timestamp} /></td>
                     </motion.tr>
                   );})}
