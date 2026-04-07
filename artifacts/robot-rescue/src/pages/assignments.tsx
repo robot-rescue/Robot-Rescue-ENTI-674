@@ -394,16 +394,9 @@ export default function Assignments() {
                   {filtered.map((incident, idx) => {
                     const isSimulated  = incident.id.startsWith("SIM-");
                     const isUnassigned = !incident.assignedTo;
-                    const rowBg = isUnassigned
-                      ? "bg-amber-500/[0.03] hover:bg-amber-500/[0.07]"
-                      : incident.status === "in_progress"
-                      ? "hover:bg-orange-500/5"
-                      : "hover:bg-secondary/30";
-                    const borderLeft = incident.severity === 'high'
-                      ? "border-l-2 border-l-red-500/50"
-                      : incident.severity === 'medium'
-                      ? "border-l-2 border-l-amber-500/40"
-                      : "border-l-2 border-l-transparent";
+                    const rowClass = incident.severity === 'high' ? 'list-row-high'
+                      : incident.severity === 'medium' ? 'list-row-medium'
+                      : 'list-row-low';
 
                     return (
                       <motion.tr
@@ -412,7 +405,7 @@ export default function Assignments() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: 20, scale: 0.98 }}
                         transition={{ duration: 0.25, delay: idx < 6 ? idx * 0.03 : 0 }}
-                        className={`border-b border-border/30 transition-colors ${rowBg} ${borderLeft}`}
+                        className={`border-b border-border/30 alt-row ${rowClass} ${isUnassigned ? 'bg-amber-500/[0.03]' : ''}`}
                       >
                         {/* Robot ID — one line, no wrap */}
                         <td className="px-4 py-3 whitespace-nowrap">
