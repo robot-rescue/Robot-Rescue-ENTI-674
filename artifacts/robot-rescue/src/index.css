@@ -74,11 +74,9 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Deep technical dark theme */
   --background: 222 47% 5%;
   --foreground: 210 40% 98%;
 
-  /* Darker panels */
   --card: 222 47% 8%;
   --card-foreground: 210 40% 98%;
   --card-border: 217 33% 13%;
@@ -87,7 +85,6 @@
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 33% 13%;
 
-  /* Futuristic Teal/Cyan */
   --primary: 185 100% 50%;
   --primary-foreground: 222 47% 5%;
   
@@ -184,16 +181,42 @@
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
 }
 
+/* Incident card styles - left accent border, no bottom bar */
 .incident-card-high {
-  border-left: 3px solid theme('colors.red.500') !important;
-  box-shadow: -2px 0 10px rgba(239, 68, 68, 0.2);
+  border-left: 3px solid rgb(239 68 68) !important;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+.incident-card-high:hover {
+  box-shadow: -4px 0 24px rgba(239, 68, 68, 0.3), 0 4px 20px rgba(239, 68, 68, 0.12);
 }
 
 .incident-card-medium {
-  border-left: 3px solid theme('colors.amber.500') !important;
+  border-left: 3px solid rgb(245 158 11) !important;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+.incident-card-medium:hover {
+  box-shadow: -4px 0 24px rgba(245, 158, 11, 0.25), 0 4px 20px rgba(245, 158, 11, 0.1);
 }
 
 .incident-card-low {
-  border-left: 3px solid theme('colors.blue.500') !important;
+  border-left: 3px solid rgb(59 130 246) !important;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+.incident-card-low:hover {
+  box-shadow: -4px 0 24px rgba(59, 130, 246, 0.25), 0 4px 20px rgba(59, 130, 246, 0.1);
 }
 
+/* Better dropdown/select contrast */
+select option {
+  background-color: hsl(222, 47%, 10%);
+  color: hsl(210, 40%, 98%);
+}
+
+select {
+  color: hsl(210, 40%, 80%);
+}
+
+/* Cursor pointer for all interactive elements */
+button, [role="button"], a, select {
+  cursor: pointer;
+}

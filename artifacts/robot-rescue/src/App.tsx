@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import IncidentDetail from "@/pages/incident-detail";
 import IncidentLog from "@/pages/incident-log";
 import Analytics from "@/pages/analytics";
+import Assignments from "@/pages/assignments";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/incidents/:id" component={IncidentDetail} />
+        <Route path="/assignments" component={Assignments} />
         <Route path="/log" component={IncidentLog} />
         <Route path="/analytics" component={Analytics} />
         <Route component={NotFound} />
