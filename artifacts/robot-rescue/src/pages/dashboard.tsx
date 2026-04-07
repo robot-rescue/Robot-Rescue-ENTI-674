@@ -260,13 +260,15 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 <AnimatePresence>
-                  {filtered.map(incident => (
+                  {filtered.map((incident, idx) => {
+                    const rowClass = incident.severity === 'high' ? 'list-row-high' : incident.severity === 'medium' ? 'list-row-medium' : 'list-row-low';
+                    return (
                     <motion.tr
                       key={incident.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="border-b border-border/40 hover:bg-secondary/40 transition-colors cursor-pointer"
+                      className={`border-b border-border/30 alt-row cursor-pointer ${rowClass}`}
                       onClick={() => setLocation(`/incidents/${incident.id}`)}
                     >
                       <td className="px-4 py-3">
@@ -276,7 +278,7 @@ export default function Dashboard() {
                           </span>
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
                         {incident.issueType.replace(/_/g, ' ')}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{incident.location}</td>
@@ -284,7 +286,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3"><StatusBadge status={incident.status} /></td>
                       <td className="px-4 py-3 text-right"><IncidentTimer timestamp={incident.timestamp} /></td>
                     </motion.tr>
-                  ))}
+                  );})}
                 </AnimatePresence>
               </tbody>
             </table>
