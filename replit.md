@@ -25,24 +25,19 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Theme**: Dark navy (`222 47% 5%`), cyan primary (`185 100% 50%`), Space Grotesk + JetBrains Mono
 - **Pages**:
   - `/` Dashboard — incident grid/list with filter tabs, severity badges, hover glow effects
-  - `/incidents/:id` Incident Detail — camera feed, telemetry, AI suggestions, operator assignment, tactical commands, related conversation panel
-  - `/assignments` Assignments — operator task management table; auto-messages operators on assignment
+  - `/incidents/:id` Incident Detail — camera feed, telemetry, AI suggestions, operator assignment, tactical commands
+  - `/assignments` Assignments — operator task management table (assign incidents to Alex Chen, Sarah Kim, Jordan Patel, Darren Watkins Jr.)
   - `/log` Incident Log — search/filter historical incidents
   - `/analytics` Analytics — 6 KPIs, line chart, location chart, AI insights
-  - `/messages` Messages — two-panel communications hub (inbox + chat thread)
 - **Features**:
-  - Real-time alert simulation every 18s (IDs prefixed `SIM-`)
-  - 4-state lifecycle: UNASSIGNED → ASSIGNED → IN PROGRESS → RESOLVED
-  - Severity row system: `.list-row-high/medium/low` + `.alt-row` CSS classes (unified across all tables)
-  - System status header bar (ONLINE/ACTIVE/CRITICAL/IN PROGRESS counts)
+  - Real-time alert simulation every 15s (IDs prefixed `SIM-`)
+  - Severity card borders: left 3px accent + hover glow (red=high, amber=medium, blue=low)
+  - System status header bar (ONLINE/ACTIVE/CRITICAL counts)
   - Notification bell with per-incident dropdown
   - Response window countdown timer (30min for HIGH severity incidents)
   - AI suggested actions (rule-based, per issue type)
   - SVG animated camera feed with warehouse perspective, robot silhouette, HUD overlays
-  - `useSimulatedAlerts` context: exports `simulatedIncidents`, `resolvedSimIncidents`, `notifications`, `activityLog`, `toastQueue`, `unreadCount`, `markAllRead`, `markOneRead`, `removeSimulatedIncident`, `addNotification`, `manualAssign`, `forceAutoAssign`, `consumeToasts`, `SIM_OPERATORS`, `getLeastBusyOperator`
-  - `useMessages` context (`messages-provider.tsx`): `conversations`, `addSystemMessage`, `sendMessage`, `markConversationRead`, `totalUnread`, `typingOps`
-  - Auto-reply simulation: operator typing indicator → randomized contextual reply after 1.5–3s
-  - System messages injected on: assignment (from assignments page), SIM incident resolution (from provider watcher)
+  - `useSimulatedAlerts` context: exports `simulatedIncidents`, `notifications`, `unreadCount`, `markAllRead`, `markOneRead`, `removeSimulatedIncident`, `addNotification`
   - `usePersistedState` in dashboard for localStorage filter persistence
 
 ### API Server (`artifacts/api-server`)
