@@ -234,7 +234,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
-                            <StatusBadge status={incident.status} assignedTo={incident.assignedTo} />
+                            <StatusBadge status={incident.status} />
                             <IncidentTimer timestamp={incident.timestamp} />
                           </div>
                         </div>
@@ -260,15 +260,13 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 <AnimatePresence>
-                  {filtered.map((incident, idx) => {
-                    const rowClass = incident.severity === 'high' ? 'list-row-high' : incident.severity === 'medium' ? 'list-row-medium' : 'list-row-low';
-                    return (
+                  {filtered.map(incident => (
                     <motion.tr
                       key={incident.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className={`border-b border-border/30 alt-row cursor-pointer ${rowClass}`}
+                      className="border-b border-border/40 hover:bg-secondary/40 transition-colors cursor-pointer"
                       onClick={() => setLocation(`/incidents/${incident.id}`)}
                     >
                       <td className="px-4 py-3">
@@ -278,15 +276,15 @@ export default function Dashboard() {
                           </span>
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
                         {incident.issueType.replace(/_/g, ' ')}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{incident.location}</td>
                       <td className="px-4 py-3"><SeverityBadge severity={incident.severity} /></td>
-                      <td className="px-4 py-3"><StatusBadge status={incident.status} assignedTo={incident.assignedTo} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={incident.status} /></td>
                       <td className="px-4 py-3 text-right"><IncidentTimer timestamp={incident.timestamp} /></td>
                     </motion.tr>
-                  );})}
+                  ))}
                 </AnimatePresence>
               </tbody>
             </table>
