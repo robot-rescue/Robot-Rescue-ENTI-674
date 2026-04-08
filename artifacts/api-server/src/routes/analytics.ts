@@ -1,15 +1,18 @@
 import { Router } from "express";
-import { incidents, resolvedIncidents, type Incident } from "./store";
+import { eq } from "drizzle-orm";
+import { db, incidentsTable } from "@workspace/db";
+import { toIncident } from "./store";
 
 const router = Router();
 
-router.get("/analytics/summary", (_req, res) => {
-  const allIncidents: Incident[] = [...incidents, ...resolvedIncidents];
-  const totalIncidents = allIncidents.length;
-  const activeIncidents = incidents.filter((i) => i.status !== "resolved").length;
-  const resolvedCount = resolvedIncidents.length;
+router.get("/analytics/summary", async (_req, res) => {
+  const rows = await db.select().from(incidentsTable);
+  const all = rows.map(toIncident);
 
-  const responseTimes = resolvedIncidents
+  const active = all.filter((i) => i.status !== "resolved");
+  const resolved = all.filter((i) => i.status === "resolved");
+
+  const responseTimes = resolved
     .map((i) => i.responseTimeSeconds)
     .filter((t): t is number => t !== null);
   const avgResponseTimeSeconds =
@@ -18,7 +21,7 @@ router.get("/analytics/summary", (_req, res) => {
       : 0;
 
   const issueTypeCounts: Record<string, number> = {};
-  for (const i of allIncidents) {
+  for (const i of all) {
     issueTypeCounts[i.issueType] = (issueTypeCounts[i.issueType] || 0) + 1;
   }
   const issueBreakdown = Object.entries(issueTypeCounts).map(
@@ -30,19 +33,19 @@ router.get("/analytics/summary", (_req, res) => {
   ).issueType;
 
   const severityCounts: Record<string, number> = {};
-  for (const i of allIncidents) {
+  for (const i of all) {
     severityCounts[i.severity] = (severityCounts[i.severity] || 0) + 1;
   }
   const severityBreakdown = Object.entries(severityCounts).map(
     ([severity, count]) => ({ severity, count })
   );
   const highSeverityPct =
-    totalIncidents > 0
-      ? Math.round(((severityCounts["high"] || 0) / totalIncidents) * 100)
+    all.length > 0
+      ? Math.round(((severityCounts["high"] || 0) / all.length) * 100)
       : 0;
 
   const locationCounts: Record<string, number> = {};
-  for (const i of allIncidents) {
+  for (const i of all) {
     locationCounts[i.location] = (locationCounts[i.location] || 0) + 1;
   }
   const locationBreakdown = Object.entries(locationCounts)
@@ -58,17 +61,17 @@ router.get("/analytics/summary", (_req, res) => {
   }
   const incidentsPerDay = last7Days.map((day) => ({
     day,
-    count: allIncidents.filter((i) => i.timestamp.startsWith(day)).length,
+    count: all.filter((i) => i.timestamp.startsWith(day)).length,
   }));
 
-  const recentActivity = [...allIncidents]
+  const recentActivity = [...all]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5);
 
   res.json({
-    totalIncidents,
-    activeIncidents,
-    resolvedIncidents: resolvedCount,
+    totalIncidents: all.length,
+    activeIncidents: active.length,
+    resolvedIncidents: resolved.length,
     avgResponseTimeSeconds,
     highSeverityPct,
     mostFrequentIssueType,
