@@ -1,8 +1,3 @@
-import { db, incidentsTable, type IncidentRow, type InsertIncident, type SensorData } from "@workspace/db";
-import { count } from "drizzle-orm";
-
-// ─── Domain types ─────────────────────────────────────────────────────────────
-
 type IssueType =
   | "obstacle_detected"
   | "system_error"
@@ -13,6 +8,14 @@ type IssueType =
 type Severity = "low" | "medium" | "high";
 type Status = "waiting" | "in_progress" | "resolved";
 type ActionTaken = "reroute" | "pause" | "manual_override" | "escalate";
+
+export interface SensorData {
+  battery: number;
+  speed: number;
+  temperature: number;
+  obstacleDistance: number | null;
+  signalStrength: number;
+}
 
 export interface Incident {
   id: string;
@@ -29,8 +32,6 @@ export interface Incident {
   assignedTo: string | null;
   sensorData: SensorData;
 }
-
-// ─── Reference data ───────────────────────────────────────────────────────────
 
 export const robotIds = [
   "RX-101", "RX-204", "RX-305", "RX-412", "RX-517",
@@ -76,13 +77,11 @@ const issueDescriptions: Record<IssueType, string[]> = {
   ],
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export function randFrom<T>(arr: readonly T[]): T {
+function randFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function randBetween(min: number, max: number): number {
+function randBetween(min: number, max: number): number {
   return Math.round((Math.random() * (max - min) + min) * 10) / 10;
 }
 
@@ -104,6 +103,8 @@ function makeSensorData(issueType: IssueType): SensorData {
   return base;
 }
 
+let idCounter = 1000;
+
 export function generateIncident(overrides: Partial<Incident> = {}): Incident {
   const issueType =
     overrides.issueType ??
@@ -114,13 +115,14 @@ export function generateIncident(overrides: Partial<Incident> = {}): Incident {
   const severity = overrides.severity ?? randFrom<Severity>(["low", "medium", "high"]);
   const robotId = overrides.robotId ?? randFrom(robotIds);
   const location = overrides.location ?? randFrom(locations);
-  const description = overrides.description ?? randFrom(issueDescriptions[issueType]);
+  const descriptions = issueDescriptions[issueType];
+  const description = overrides.description ?? randFrom(descriptions);
   const now = new Date();
   const minsAgo = Math.floor(Math.random() * 40);
   const timestamp = overrides.timestamp ?? new Date(now.getTime() - minsAgo * 60000).toISOString();
 
   return {
-    id: "0",
+    id: String(++idCounter),
     robotId,
     location,
     issueType,
@@ -137,97 +139,59 @@ export function generateIncident(overrides: Partial<Incident> = {}): Incident {
   };
 }
 
-// ─── Row → API type conversion ─────────────────────────────────────────────────
+const actions: ActionTaken[] = ["reroute", "pause", "manual_override", "escalate"];
 
-export function toIncident(row: IncidentRow): Incident {
-  return {
-    id: String(row.id),
-    robotId: row.robotId,
-    location: row.location,
-    issueType: row.issueType as IssueType,
-    severity: row.severity as Severity,
-    status: row.status as Status,
-    description: row.description,
-    timestamp: row.createdAt.toISOString(),
-    resolvedAt: row.resolvedAt?.toISOString() ?? null,
-    actionTaken: row.actionTaken as ActionTaken | null,
-    responseTimeSeconds: row.responseTimeSeconds,
-    assignedTo: row.assignedTo,
-    sensorData: row.sensorData,
-  };
-}
-
-// ─── Seed ──────────────────────────────────────────────────────────────────────
-
-const ALL_ISSUE_TYPES: IssueType[] = [
-  "obstacle_detected", "system_error", "path_blocked",
-  "sensor_failure", "battery_critical", "communication_lost",
+export const incidents: Incident[] = [
+  generateIncident({ severity: "high", issueType: "system_error" }),
+  generateIncident({ severity: "high", issueType: "battery_critical" }),
+  generateIncident({ severity: "medium", issueType: "obstacle_detected" }),
+  generateIncident({ severity: "medium", issueType: "path_blocked" }),
+  generateIncident({ severity: "low", issueType: "sensor_failure" }),
+  generateIncident({ severity: "low", issueType: "communication_lost" }),
 ];
-const ACTIONS: ActionTaken[] = ["reroute", "pause", "manual_override", "escalate"];
 
-export async function seedIfEmpty(): Promise<void> {
-  const [{ value: total }] = await db.select({ value: count() }).from(incidentsTable);
-  if (total > 0) return;
-
-  const rows: InsertIncident[] = [];
-
-  // 6 active incidents
-  const activeSpecs: Array<{ severity: Severity; issueType: IssueType }> = [
-    { severity: "high",   issueType: "system_error" },
-    { severity: "high",   issueType: "battery_critical" },
-    { severity: "medium", issueType: "obstacle_detected" },
-    { severity: "medium", issueType: "path_blocked" },
-    { severity: "low",    issueType: "sensor_failure" },
-    { severity: "low",    issueType: "communication_lost" },
+export const resolvedIncidents: Incident[] = (() => {
+  const resolved: Incident[] = [];
+  const issueTypes: IssueType[] = [
+    "obstacle_detected", "system_error", "path_blocked",
+    "sensor_failure", "battery_critical", "communication_lost",
   ];
-  for (const spec of activeSpecs) {
-    const inc = generateIncident(spec);
-    rows.push({
-      robotId: inc.robotId,
-      location: inc.location,
-      issueType: inc.issueType,
-      severity: inc.severity,
-      status: "waiting",
-      description: inc.description,
-      createdAt: new Date(inc.timestamp),
-      resolvedAt: null,
-      actionTaken: null,
-      responseTimeSeconds: null,
-      assignedTo: null,
-      sensorData: inc.sensorData,
-    });
-  }
-
-  // 21 resolved incidents spread across last 7 days
-  const now = new Date();
   for (let i = 0; i < 21; i++) {
-    const issueType = randFrom(ALL_ISSUE_TYPES);
+    const issueType = randFrom<IssueType>(issueTypes);
     const severity = randFrom<Severity>(["low", "medium", "high"]);
+    const robotId = randFrom(robotIds);
+    const location = randFrom(locations);
+    const descriptions = issueDescriptions[issueType];
+    const description = randFrom(descriptions);
+    const now = new Date();
     const daysAgo = Math.floor(Math.random() * 7);
     const hoursAgo = Math.floor(Math.random() * 24);
-    const minsAgo = Math.floor(Math.random() * 60);
-    const createdAt = new Date(
-      now.getTime() - daysAgo * 86_400_000 - hoursAgo * 3_600_000 - minsAgo * 60_000
-    );
+    const minsAgo2 = Math.floor(Math.random() * 60);
+    const timestamp = new Date(
+      now.getTime() - daysAgo * 86400000 - hoursAgo * 3600000 - minsAgo2 * 60000
+    ).toISOString();
     const responseTime = randBetween(30, 900);
-    const resolvedAt = new Date(createdAt.getTime() + responseTime * 1000);
-    const inc = generateIncident({ issueType, severity });
-    rows.push({
-      robotId: inc.robotId,
-      location: inc.location,
+    const resolvedAt = new Date(
+      new Date(timestamp).getTime() + responseTime * 1000
+    ).toISOString();
+
+    resolved.push({
+      id: String(++idCounter),
+      robotId,
+      location,
       issueType,
       severity,
       status: "resolved",
-      description: inc.description,
-      createdAt,
+      description,
+      timestamp,
       resolvedAt,
-      actionTaken: randFrom(ACTIONS),
-      responseTimeSeconds: Math.round(responseTime),
+      actionTaken: randFrom(actions),
+      responseTimeSeconds: responseTime,
       assignedTo: Math.random() > 0.4 ? randFrom(operators) : null,
-      sensorData: inc.sensorData,
+      sensorData: makeSensorData(issueType),
     });
   }
-
-  await db.insert(incidentsTable).values(rows);
-  console.log(`[seed] inserted ${rows.length} incidents`);
-}
+  return resolved.sort(
+    (a, b) => new Date(b.resolvedAt!).getTime() - new Date(a.resolvedAt!).getTime()
+  );
+})();
