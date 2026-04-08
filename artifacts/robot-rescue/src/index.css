@@ -173,6 +173,25 @@
   opacity: 0.3;
 }
 
+.cam-scanline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(0,0,0,0.15) 50%
+  );
+  background-size: 100% 3px;
+  pointer-events: none;
+  z-index: 5;
+  animation: scan-move 8s linear infinite;
+}
+
+@keyframes scan-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
 .glow-primary {
   box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
 }
@@ -204,6 +223,39 @@
 }
 .incident-card-low:hover {
   box-shadow: -4px 0 24px rgba(59, 130, 246, 0.25), 0 4px 20px rgba(59, 130, 246, 0.1);
+}
+
+/* Severity-tinted list row hovers */
+.list-row-high {
+  border-left: 2px solid rgba(239, 68, 68, 0.4);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.list-row-high:hover {
+  background-color: rgba(239, 68, 68, 0.07) !important;
+  border-left-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+.list-row-medium {
+  border-left: 2px solid rgba(245, 158, 11, 0.3);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.list-row-medium:hover {
+  background-color: rgba(245, 158, 11, 0.06) !important;
+  border-left-color: rgba(245, 158, 11, 0.6) !important;
+}
+
+.list-row-low {
+  border-left: 2px solid rgba(59, 130, 246, 0.25);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.list-row-low:hover {
+  background-color: rgba(59, 130, 246, 0.06) !important;
+  border-left-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Table alternating rows */
+.alt-row:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.015);
 }
 
 /* Better dropdown/select contrast */

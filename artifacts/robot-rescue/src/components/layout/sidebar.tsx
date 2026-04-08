@@ -1,16 +1,19 @@
 import { Link, useLocation } from "wouter";
-import { AlertTriangle, BarChart3, Bot, List, ShieldAlert, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Bot, List, MessageSquare, ShieldAlert, Users } from "lucide-react";
 import { useSimulatedAlerts } from "../simulated-alerts-provider";
+import { useMessages } from "../messages-provider";
 
 export function Sidebar() {
   const [location] = useLocation();
   const { unreadCount } = useSimulatedAlerts();
+  const { totalUnread } = useMessages();
 
   const navItems = [
-    { href: "/", icon: AlertTriangle, label: "Active Alerts", badge: unreadCount > 0 },
-    { href: "/assignments", icon: Users, label: "Assignments" },
-    { href: "/log", icon: List, label: "Incident Log" },
-    { href: "/analytics", icon: BarChart3, label: "Analytics" },
+    { href: "/",           icon: AlertTriangle,  label: "Active Alerts",  badge: unreadCount > 0 ? unreadCount : 0 },
+    { href: "/assignments", icon: Users,          label: "Assignments",    badge: 0 },
+    { href: "/log",        icon: List,           label: "Incident Log",   badge: 0 },
+    { href: "/messages",   icon: MessageSquare,  label: "Messages",       badge: totalUnread },
+    { href: "/analytics",  icon: BarChart3,      label: "Analytics",      badge: 0 },
   ];
 
   return (
@@ -40,8 +43,13 @@ export function Sidebar() {
               <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-primary" : ""}`} />
               <span className="text-sm tracking-wide ml-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">{item.label}</span>
               
-              {item.badge && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]" />
+              {item.badge > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[18px] h-[18px] rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-1 animate-pulse shadow-[0_0_8px_hsl(var(--primary))] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {item.badge > 9 ? "9+" : item.badge}
+                </span>
+              )}
+              {item.badge > 0 && (
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))] group-hover:opacity-0 transition-opacity duration-300" />
               )}
             </Link>
           );
