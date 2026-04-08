@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "start": "vite",
     "build": "vite build",
-    "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit"
+    "preview": "vite preview --host"
   },
   "devDependencies": {
+    "prettier": "^3.8.1",
     "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "vite": "^6.4.2"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }
