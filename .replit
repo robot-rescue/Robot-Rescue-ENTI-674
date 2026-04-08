@@ -8,7 +8,8 @@ id = "artifacts/mockup-sandbox"
 
 [deployment]
 router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "static"
+publicDir = "public"
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
