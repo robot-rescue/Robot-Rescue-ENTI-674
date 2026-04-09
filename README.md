@@ -81,7 +81,7 @@ Prerequisites:
 - npm
 
 Installation:
-git clone https://github.com/your-username/robot-rescue.git
+git clone https://github.com/robot-rescue/Robot-Rescue-ENTI-674
 cd robot-rescue
 npm install
 
